@@ -298,7 +298,12 @@ async def test_tickets_state_machine(client: AsyncClient, monkeypatch: pytest.Mo
     created = await client.post(
         "/api/v1/tickets",
         headers=headers,
-        json={"tipo": "rmi", "titulo": "Proyector roto", "descripcion": "Aula A1"},
+        json={
+            "tipo": "rmi",
+            "titulo": "Proyector roto",
+            "descripcion": "No da imagen",
+            "datos": {"aula": "A1", "dispositivos": "Proyector"},
+        },
     )
     assert created.status_code == 201
     ticket_id = created.json()["id"]

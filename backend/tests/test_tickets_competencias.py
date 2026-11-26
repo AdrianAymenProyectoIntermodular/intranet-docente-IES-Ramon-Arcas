@@ -63,8 +63,18 @@ async def _activate_as(
     return {"Authorization": f"Bearer {login2.json()['access_token']}"}, user_id
 
 
+DATOS = {
+    "rmi": {"aula": "A1", "dispositivos": "Proyector"},
+    "compras": {"articulos": "Cables", "precio_total": 20, "requiere_presupuesto": False},
+    "rrss": {"departamento": "Informática"},
+    "otro": {},
+}
+
+
 async def _crear(client: AsyncClient, headers: dict[str, str], tipo: str, titulo: str = "Prueba") -> dict:
-    res = await client.post("/api/v1/tickets", headers=headers, json={"tipo": tipo, "titulo": titulo})
+    res = await client.post(
+        "/api/v1/tickets", headers=headers, json={"tipo": tipo, "titulo": titulo, "datos": DATOS[tipo]}
+    )
     assert res.status_code == 201
     return res.json()
 

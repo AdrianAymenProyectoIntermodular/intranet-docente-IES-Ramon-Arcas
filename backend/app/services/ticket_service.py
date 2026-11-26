@@ -110,6 +110,7 @@ async def create_ticket(
         "tipo": payload.tipo.value,
         "titulo": payload.titulo,
         "descripcion": payload.descripcion,
+        "datos": payload.datos,
         "estado": TicketEstado.abierto.value,
         "solicitante_id": solicitante_id,
         # Se asigna automáticamente al responsable del tipo (si existe).
