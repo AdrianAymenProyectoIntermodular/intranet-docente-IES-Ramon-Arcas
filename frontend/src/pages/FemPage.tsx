@@ -1,5 +1,6 @@
-import { Briefcase, MapPinned, Pencil, Search } from 'lucide-react'
+import { Briefcase, Pencil, Search } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router'
 import { useUser } from '../auth/auth-context'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Badge } from '../components/ui/Badge'
@@ -8,19 +9,23 @@ import { DataTable, type Column } from '../components/ui/DataTable'
 import { EmptyState, ErrorState, ProgressBar, Skeleton } from '../components/ui/Feedback'
 import { Field, Input } from '../components/ui/Field'
 import { Modal } from '../components/ui/Modal'
-import { Panel } from '../components/ui/Panel'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toast-context'
 import { useApi } from '../hooks/useApi'
 import { useNombre } from '../hooks/useNombre'
 import { ESTADO_FEM } from '../lib/labels'
 import { errorMessage } from '../services/api'
-import { listFemAlumnos, patchFemHoras } from '../services/modulos'
+import { listFemAlumnos, listFemEmpresas, patchFemHoras } from '../services/modulos'
 import type { FemAlumno } from '../services/types'
+import { FILTROS_VACIOS, type FiltrosEmpresas } from '../lib/fem'
+import { EmpresasPanel } from './fem/EmpresasPanel'
 
 type Filtro = 'todos' | 'activo' | 'pendiente' | 'finalizado'
 
 const pct = (a: FemAlumno) => (a.horas_totales ? (a.horas_cursadas / a.horas_totales) * 100 : 0)
+
+type Vista = 'alumnado' | 'empresas'
+const VISTAS: Vista[] = ['alumnado', 'empresas']
 
 export function FemPage() {
   const user = useUser()
@@ -31,6 +36,10 @@ export function FemPage() {
   const [filtro, setFiltro] = useState<Filtro>('todos')
   const [texto, setTexto] = useState('')
   const [editando, setEditando] = useState<FemAlumno | null>(null)
+  const [params, setParams] = useSearchParams()
+  const vista: Vista = VISTAS.includes(params.get('vista') as Vista) ? (params.get('vista') as Vista) : 'alumnado'
+  const empresasApi = useApi(() => listFemEmpresas())
+  const [filtrosEmpresas, setFiltrosEmpresas] = useState<FiltrosEmpresas>(FILTROS_VACIOS)
 
   const alumnos = useMemo(() => data ?? [], [data])
   const filtrados = useMemo(() => {
@@ -62,7 +71,12 @@ export function FemPage() {
       key: 'empresa',
       header: 'Empresa',
       sortValue: (a) => a.empresa ?? '',
-      render: (a) => (a.empresa ? a.empresa : <span className="subtle">Sin asignar</span>),
+      render: (a) => (
+        <span className="cell-main">
+          {a.empresa ? <span>{a.empresa}</span> : <span className="subtle">Sin asignar</span>}
+          {a.ciclo && <span className="subtle cell-sub">{a.ciclo}</span>}
+        </span>
+      ),
     },
     {
       key: 'estado',
@@ -119,7 +133,19 @@ export function FemPage() {
         }
       />
 
-      {loading ? (
+      <Tabs<Vista>
+        label="Sección de FEM"
+        value={vista}
+        onChange={(v) => setParams(v === 'alumnado' ? {} : { vista: v }, { replace: true })}
+        items={[
+          { value: 'alumnado', label: 'Alumnado', count: alumnos.length },
+          { value: 'empresas', label: 'Empresas', count: empresasApi.data?.length },
+        ]}
+      />
+
+      {vista === 'empresas' ? (
+        <EmpresasPanel empresas={empresasApi} filtros={filtrosEmpresas} onFiltros={setFiltrosEmpresas} />
+      ) : loading ? (
         <Skeleton lines={6} height={22} />
       ) : error ? (
         <ErrorState message={error} onRetry={() => void reload()} />
@@ -179,12 +205,6 @@ export function FemPage() {
           </div>
         </>
       )}
-
-      <Panel title="Mapa de empresas colaboradoras">
-        <EmptyState icon={MapPinned} title="Disponible próximamente" compact>
-          El mapa con las empresas activas e inactivas necesita su ubicación, que la API aún no guarda.
-        </EmptyState>
-      </Panel>
 
       <HorasModal
         alumno={editando}

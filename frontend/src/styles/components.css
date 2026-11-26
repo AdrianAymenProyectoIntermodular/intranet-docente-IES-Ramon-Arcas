@@ -1037,3 +1037,11 @@ html.modal-open {
   background: var(--sol-wash);
   color: var(--sol-ink);
 }
+
+.text-aviso {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--aviso);
+  font-size: var(--fs-sm);
+}

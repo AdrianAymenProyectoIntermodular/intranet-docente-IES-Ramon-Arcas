@@ -151,6 +151,8 @@ export type FemAlumno = {
   id: string
   nombre: string
   empresa: string | null
+  empresa_id?: string | null
+  ciclo?: string | null
   estado: string | null
   horas_cursadas: number
   horas_totales: number
@@ -236,4 +238,21 @@ export type Emplazamiento = EmplazamientoPayload & {
   autor_nombre?: string | null
   creado_en?: string | null
   actualizado_en?: string | null
+}
+
+export type FemEmpresaPayload = {
+  nombre: string
+  direccion: string
+  municipio: string
+  ciclos: string[]
+  activa: boolean
+}
+
+export type FemEmpresa = FemEmpresaPayload & {
+  id: string
+  lat: number | null
+  lon: number | null
+  geocodificada: boolean
+  /** Alumnado en prácticas ahora */
+  alumnos: number
 }

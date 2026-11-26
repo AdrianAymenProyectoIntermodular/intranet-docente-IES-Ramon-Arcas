@@ -10,6 +10,8 @@ import type {
   Emplazamiento,
   EmplazamientoPayload,
   FemAlumno,
+  FemEmpresa,
+  FemEmpresaPayload,
   Paginated,
   RegistroAuditoria,
   Retraso,
@@ -139,4 +141,21 @@ export function updateEmplazamiento(id: string, payload: EmplazamientoPayload): 
 
 export function deleteEmplazamiento(id: string): Promise<void> {
   return apiFetch<void>(`/api/v1/emplazamientos/${id}`, { method: 'DELETE' })
+}
+
+/* Empresas FEM */
+export function listFemEmpresas(params: { municipio?: string; ciclo?: string; activa?: boolean } = {}): Promise<FemEmpresa[]> {
+  return apiFetch<FemEmpresa[]>(`/api/v1/fem/empresas${query(params)}`)
+}
+
+export function createFemEmpresa(payload: FemEmpresaPayload): Promise<FemEmpresa> {
+  return apiFetch<FemEmpresa>('/api/v1/fem/empresas', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function patchFemEmpresa(id: string, payload: Partial<FemEmpresaPayload>): Promise<FemEmpresa> {
+  return apiFetch<FemEmpresa>(`/api/v1/fem/empresas/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+}
+
+export function geocodificarFemEmpresa(id: string): Promise<FemEmpresa> {
+  return apiFetch<FemEmpresa>(`/api/v1/fem/empresas/${id}/geocodificar`, { method: 'POST' })
 }
