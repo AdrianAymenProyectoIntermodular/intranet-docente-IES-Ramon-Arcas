@@ -13,7 +13,7 @@ import { useToast } from '../../components/ui/toast-context'
 import { useApi } from '../../hooks/useApi'
 import { useDirectorio } from '../../hooks/useDirectorio'
 import { formatFecha, formatRelativa, parseApiDate } from '../../lib/format'
-import { ESTADO_TICKET, ORDEN_ESTADOS, TIPO_TICKET } from '../../lib/labels'
+import { ESTADO_TICKET, ORDEN_ESTADOS, resumenDatos, TIPO_TICKET } from '../../lib/labels'
 import { listTickets } from '../../services/modulos'
 import type { Ticket, TicketEstado, TicketTipo } from '../../services/types'
 import { NuevaSolicitudModal } from './NuevaSolicitudModal'
@@ -59,7 +59,8 @@ export function SolicitudesPage() {
       if (tipo !== 'todas' && t.tipo !== tipo) return false
       if (estado && t.estado !== estado) return false
       if (soloMias && t.solicitante_id !== user.id && t.asignado_id !== user.id) return false
-      if (q && !`${t.titulo} ${t.descripcion ?? ''}`.toLowerCase().includes(q)) return false
+      const texto = `${t.titulo} ${t.descripcion ?? ''} ${Object.values(t.datos ?? {}).join(' ')}`
+      if (q && !texto.toLowerCase().includes(q)) return false
       return true
     })
   }, [tickets, tipo, estado, soloMias, texto, user.id])
@@ -76,7 +77,11 @@ export function SolicitudesPage() {
       render: (t) => (
         <span className="cell-main">
           <span className="cell-title">{t.titulo}</span>
-          {t.descripcion && <span className="subtle cell-sub">{t.descripcion.split('\n')[0]}</span>}
+          {(resumenDatos(t.tipo, t.datos) ?? t.descripcion) && (
+            <span className="subtle cell-sub">
+              {resumenDatos(t.tipo, t.datos) ?? t.descripcion?.split('\n')[0]}
+            </span>
+          )}
         </span>
       ),
     },

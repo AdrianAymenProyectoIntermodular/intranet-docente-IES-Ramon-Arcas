@@ -1,6 +1,6 @@
 /** Etiquetas de dominio para la interfaz. */
 import type { BadgeTone } from '../components/ui/Badge'
-import type { TicketEstado, TicketTipo } from '../services/types'
+import type { TicketDatos, TicketEstado, TicketTipo } from '../services/types'
 
 export const TIPO_TICKET: Record<TicketTipo, { label: string; corto: string; descripcion: string }> = {
   rmi: {
@@ -81,4 +81,37 @@ export const ACCION_AUDITORIA: Record<string, string> = {
   'usuarios.put_roles': 'Cambio de roles',
   'retrasos.create': 'Registro de retraso',
   'retrasos.consulta_historico': 'Consulta de histórico de retrasos',
+}
+
+const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })
+
+/** Campos de `datos` de un ticket como pares etiqueta/valor, en el orden en que se muestran. */
+export function camposDatos(tipo: TicketTipo, datos: TicketDatos | undefined): { label: string; valor: string }[] {
+  const d = datos ?? {}
+  const texto = (v: unknown) => (typeof v === 'string' ? v.trim() : '')
+  const campos: { label: string; valor: string }[] = []
+  if (tipo === 'rmi') {
+    campos.push({ label: 'Aula o espacio', valor: texto(d.aula) })
+    campos.push({ label: 'Dispositivos afectados', valor: texto(d.dispositivos) })
+  } else if (tipo === 'compras') {
+    campos.push({ label: 'Artículos', valor: texto(d.articulos) })
+    const precio = typeof d.precio_total === 'number' ? d.precio_total : Number(d.precio_total)
+    campos.push({ label: 'Precio total', valor: Number.isFinite(precio) && d.precio_total !== undefined ? euros.format(precio) : '' })
+    campos.push({ label: 'Requiere presupuesto', valor: d.requiere_presupuesto ? 'Sí' : 'No' })
+  } else if (tipo === 'rrss') {
+    campos.push({ label: 'Departamento', valor: texto(d.departamento) })
+  }
+  return campos.filter((c) => c.valor)
+}
+
+/** Resumen de una línea para listados. */
+export function resumenDatos(tipo: TicketTipo, datos: TicketDatos | undefined): string | null {
+  const d = datos ?? {}
+  if (tipo === 'rmi' && d.aula) return `Aula ${d.aula}: ${d.dispositivos ?? ''}`.trim()
+  if (tipo === 'compras' && d.articulos) {
+    const primera = String(d.articulos).split('\n')[0]
+    return typeof d.precio_total === 'number' ? `${euros.format(d.precio_total)}, ${primera}` : primera
+  }
+  if (tipo === 'rrss' && d.departamento) return `Departamento de ${d.departamento}`
+  return null
 }

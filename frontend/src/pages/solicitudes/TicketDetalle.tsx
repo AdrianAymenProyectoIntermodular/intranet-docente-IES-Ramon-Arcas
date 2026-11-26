@@ -12,7 +12,14 @@ import { useToast } from '../../components/ui/toast-context'
 import { useApi } from '../../hooks/useApi'
 import { useDirectorio } from '../../hooks/useDirectorio'
 import { formatFechaHora } from '../../lib/format'
-import { ACCION_SIGUIENTE, ESTADO_TICKET, ORDEN_ESTADOS, SIGUIENTE_ESTADO, TIPO_TICKET } from '../../lib/labels'
+import {
+  ACCION_SIGUIENTE,
+  camposDatos,
+  ESTADO_TICKET,
+  ORDEN_ESTADOS,
+  SIGUIENTE_ESTADO,
+  TIPO_TICKET,
+} from '../../lib/labels'
 import { errorMessage } from '../../services/api'
 import { createComentario, listComentarios, patchTicket } from '../../services/modulos'
 import type { Ticket, UsuarioMe } from '../../services/types'
@@ -96,6 +103,7 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
   }
 
   const pasoActual = ORDEN_ESTADOS.indexOf(t.estado)
+  const datos = camposDatos(t.tipo, t.datos)
 
   return (
     <div className="stack detalle">
@@ -136,6 +144,17 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
           </dd>
         </div>
       </dl>
+
+      {datos.length > 0 && (
+        <dl className="datos-lista">
+          {datos.map((c) => (
+            <div key={c.label}>
+              <dt>{c.label}</dt>
+              <dd>{c.valor}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {t.descripcion && <div className="detalle-descripcion">{t.descripcion}</div>}
 

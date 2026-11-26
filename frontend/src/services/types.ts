@@ -93,12 +93,20 @@ export type Ticket = {
   solicitante_id: string
   asignado_id: string | null
   creado_en: string | null
+  /** Datos propios del tipo (ver TicketDatos*). */
+  datos?: TicketDatos
 }
+
+export type TicketDatosRmi = { aula: string; dispositivos: string }
+export type TicketDatosCompras = { articulos: string; precio_total: number; requiere_presupuesto: boolean }
+export type TicketDatosRrss = { departamento: string }
+export type TicketDatos = Partial<TicketDatosRmi & TicketDatosCompras & TicketDatosRrss> & Record<string, unknown>
 
 export type TicketCreatePayload = {
   tipo: TicketTipo
   titulo: string
   descripcion?: string | null
+  datos?: TicketDatosRmi | TicketDatosCompras | TicketDatosRrss | Record<string, never>
 }
 
 export type TicketPatchPayload = {

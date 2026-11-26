@@ -1018,3 +1018,28 @@
 .reasignar .input {
   flex: 1;
 }
+
+/* Datos propios del tipo de solicitud */
+.datos-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s-3) var(--s-5);
+  margin: 0;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid var(--borde);
+}
+.datos-lista dt {
+  font-size: var(--fs-xs);
+  color: var(--tinta-3);
+}
+.datos-lista dd {
+  margin: 2px 0 0;
+  font-weight: 500;
+  white-space: pre-line;
+}
+.datos-lista-compacta {
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  background: var(--superficie);
+}

@@ -7,10 +7,10 @@ import { Notice } from '../../components/ui/Feedback'
 import { Checkbox, Field, Input, Select, Textarea } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
 import { departamentosCon } from '../../lib/centro'
-import { TIPO_TICKET } from '../../lib/labels'
+import { camposDatos, TIPO_TICKET } from '../../lib/labels'
 import { errorMessage } from '../../services/api'
 import { createTicket } from '../../services/modulos'
-import type { Ticket, TicketTipo } from '../../services/types'
+import type { Ticket, TicketCreatePayload, TicketDatos, TicketTipo } from '../../services/types'
 
 const ICONOS: Record<TicketTipo, LucideIcon> = {
   rmi: Monitor,
@@ -21,45 +21,23 @@ const ICONOS: Record<TicketTipo, LucideIcon> = {
 
 type Campos = Record<string, string>
 
-/**
- * La API guarda `titulo` + `descripcion` (no tiene campo de datos específicos por tipo).
- * Los campos de cada formulario se componen en una descripción legible para el responsable.
- */
-function componer(tipo: TicketTipo, c: Campos, presupuesto: boolean): { titulo: string; descripcion: string } {
-  const lineas = (pares: [string, string | undefined][]) =>
-    pares
-      .filter(([, v]) => v && v.trim())
-      .map(([k, v]) => `${k}: ${v!.trim()}`)
-      .join('\n')
+/** Construye la petición con los `datos` propios del tipo (validados también en la API). */
+function construir(tipo: TicketTipo, c: Campos, presupuesto: boolean): TicketCreatePayload {
+  const t = (k: string) => c[k]?.trim() ?? ''
+  const base = { tipo, descripcion: t('descripcion') || null }
   switch (tipo) {
     case 'rmi':
-      return {
-        titulo: c.titulo?.trim() ?? '',
-        descripcion: [lineas([['Aula', c.aula], ['Dispositivos afectados', c.dispositivos]]), c.descripcion?.trim()]
-          .filter(Boolean)
-          .join('\n\n'),
-      }
+      return { ...base, titulo: t('titulo'), datos: { aula: t('aula'), dispositivos: t('dispositivos') } }
     case 'compras':
       return {
-        titulo: c.titulo?.trim() ?? '',
-        descripcion: [
-          lineas([
-            ['Artículos', c.articulos],
-            ['Precio total', c.precio ? `${Number(c.precio).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}` : undefined],
-            ['Requiere presupuesto', presupuesto ? 'Sí' : 'No'],
-          ]),
-          c.descripcion?.trim(),
-        ]
-          .filter(Boolean)
-          .join('\n\n'),
+        ...base,
+        titulo: t('titulo'),
+        datos: { articulos: t('articulos'), precio_total: Number(c.precio || 0), requiere_presupuesto: presupuesto },
       }
     case 'rrss':
-      return {
-        titulo: c.titulo?.trim() ? `Publicación: ${c.titulo.trim()}` : '',
-        descripcion: [lineas([['Departamento', c.departamento]]), c.descripcion?.trim()].filter(Boolean).join('\n\n'),
-      }
+      return { ...base, titulo: t('titulo') ? `Publicación: ${t('titulo')}` : '', datos: { departamento: t('departamento') } }
     default:
-      return { titulo: c.titulo?.trim() ?? '', descripcion: c.descripcion?.trim() ?? '' }
+      return { ...base, titulo: t('titulo'), datos: {} }
   }
 }
 
@@ -119,9 +97,7 @@ export function NuevaSolicitudModal({
     setEnviando(true)
     setErrorApi(null)
     try {
-      const { titulo, descripcion } = componer(tipo, campos, presupuesto)
-      const t = await createTicket({ tipo, titulo, descripcion: descripcion || null })
-      onCreated(t)
+      onCreated(await createTicket(construir(tipo, campos, presupuesto)))
     } catch (err) {
       setErrorApi(errorMessage(err))
     } finally {
@@ -129,7 +105,8 @@ export function NuevaSolicitudModal({
     }
   }
 
-  const resumen = tipo ? componer(tipo, campos, presupuesto) : null
+  const resumen = tipo ? construir(tipo, campos, presupuesto) : null
+  const camposResumen = resumen ? camposDatos(resumen.tipo, resumen.datos as TicketDatos) : []
 
   return (
     <Modal
@@ -270,10 +247,20 @@ export function NuevaSolicitudModal({
             </>
           )}
 
-          {resumen && (resumen.titulo || resumen.descripcion) && (
+          {resumen && (resumen.titulo || resumen.descripcion || camposResumen.length > 0) && (
             <div className="preview" aria-live="polite">
               <p className="preview-label">Así llegará al responsable</p>
               <p className="preview-title">{resumen.titulo || 'Sin título'}</p>
+              {camposResumen.length > 0 && (
+                <dl className="datos-lista datos-lista-compacta">
+                  {camposResumen.map((c) => (
+                    <div key={c.label}>
+                      <dt>{c.label}</dt>
+                      <dd>{c.valor}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
               {resumen.descripcion && <p className="preview-body">{resumen.descripcion}</p>}
             </div>
           )}
