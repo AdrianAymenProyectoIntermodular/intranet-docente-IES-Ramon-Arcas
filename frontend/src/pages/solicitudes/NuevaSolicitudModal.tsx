@@ -238,8 +238,8 @@ export function NuevaSolicitudModal({
           {tipo === 'rrss' && (
             <>
               <Notice tone="info">
-                Esta solicitud no publica nada en redes. Llega al equipo de RRSS, que descarga las imágenes,
-                redacta el texto y lo publica a mano.
+                Esta solicitud no publica nada en redes. Se generará un borrador de texto a partir de lo que
+                escribas; el equipo de RRSS lo revisa, descarga las imágenes y publica a mano.
               </Notice>
               <Field label="Título de la actividad" required error={errores.titulo}>
                 <Input value={campos.titulo ?? ''} onChange={set('titulo')} placeholder="Semana de la Ciencia" autoFocus />

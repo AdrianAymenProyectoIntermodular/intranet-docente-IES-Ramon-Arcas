@@ -1,5 +1,5 @@
-import { Check, MessageSquare, Paperclip, Send, UserCheck } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { Check, Copy, MessageSquare, Paperclip, RefreshCw, Send, UserCheck } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useUser } from '../../auth/auth-context'
 import { Avatar } from '../../components/ui/Avatar'
 import { Badge } from '../../components/ui/Badge'
@@ -24,7 +24,15 @@ import { errorMessage } from '../../services/api'
 import { GaleriaAdjuntos } from '../../components/Adjuntos'
 import { Spinner } from '../../components/ui/Spinner'
 import { FORMATOS_ADJUNTO, MAX_POR_TICKET, validarArchivo } from '../../lib/adjuntos'
-import { borrarAdjunto, createComentario, listComentarios, patchTicket, subirAdjunto } from '../../services/modulos'
+import {
+  borrarAdjunto,
+  createComentario,
+  listComentarios,
+  listTickets,
+  patchTicket,
+  regenerarBorrador,
+  subirAdjunto,
+} from '../../services/modulos'
 import type { AdjuntoMeta, Ticket, UsuarioMe } from '../../services/types'
 import { listUsuarios } from '../../services/usuarios'
 
@@ -163,6 +171,8 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
 
       <SeccionAdjuntos ticket={t} onUpdated={onUpdated} />
 
+      {t.tipo === 'rrss' && <BorradorRedes ticket={t} onUpdated={onUpdated} />}
+
       {t.tipo === 'rrss' && (
         <Notice tone="info">
           El equipo de RRSS revisa la solicitud, descarga las imágenes y publica a mano en las redes del
@@ -200,6 +210,92 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
         avanzan: no se puede volver atrás.
       </ConfirmDialog>
     </div>
+  )
+}
+
+/**
+ * Borrador de texto para redes. Hoy lo genera una plantilla temporal (sin IA):
+ * se indica siempre para que nadie lo tome por texto de un modelo.
+ */
+function BorradorRedes({ ticket, onUpdated }: { ticket: Ticket; onUpdated: (t: Ticket) => void }) {
+  const user = useUser()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const borrador = ticket.borrador
+  const onUpdatedRef = useRef(onUpdated)
+  useEffect(() => {
+    onUpdatedRef.current = onUpdated
+  })
+  const puedeRegenerar =
+    user.roles.includes('admin') || user.id === ticket.solicitante_id || user.id === ticket.asignado_id
+
+  // Mientras se genera en segundo plano, se consulta de nuevo un par de veces.
+  useEffect(() => {
+    if (borrador?.estado !== 'pendiente') return
+    let intentos = 0
+    const t = window.setInterval(async () => {
+      intentos += 1
+      try {
+        const actual = (await listTickets({ tipo: 'rrss' })).find((x) => x.id === ticket.id)
+        if (actual && actual.borrador?.estado !== 'pendiente') onUpdatedRef.current(actual)
+      } catch {
+        /* se reintenta */
+      }
+      if (intentos >= 5) window.clearInterval(t)
+    }, 1500)
+    return () => window.clearInterval(t)
+  }, [borrador?.estado, ticket.id])
+
+  const regenerar = async () => {
+    setBusy(true)
+    try {
+      onUpdated(await regenerarBorrador(ticket.id))
+      toast.ok('Borrador regenerado')
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const copiar = async () => {
+    if (!borrador?.texto) return
+    try {
+      await navigator.clipboard.writeText(borrador.texto)
+      toast.ok('Texto copiado')
+    } catch {
+      toast.error('No se pudo copiar. Selecciona el texto y cópialo a mano.')
+    }
+  }
+
+  return (
+    <section className="borrador" aria-label="Borrador para redes">
+      <div className="row-between">
+        <h3>Borrador para redes</h3>
+        {borrador?.proveedor === 'plantilla' && <Badge tone="neutro">Plantilla, IA pendiente de conectar</Badge>}
+      </div>
+      {!borrador || borrador.estado === 'pendiente' ? (
+        <div className="row subtle">
+          <Spinner size={16} /> Generando el borrador…
+        </div>
+      ) : borrador.estado === 'error' ? (
+        <p className="text-error">{borrador.error ?? 'No se pudo generar el borrador.'}</p>
+      ) : (
+        <p className="borrador-texto">{borrador.texto}</p>
+      )}
+      <div className="row">
+        {borrador?.estado === 'listo' && (
+          <Button size="sm" icon={Copy} onClick={() => void copiar()}>
+            Copiar texto
+          </Button>
+        )}
+        {puedeRegenerar && borrador?.estado !== 'pendiente' && (
+          <Button size="sm" variant="ghost" icon={RefreshCw} loading={busy} onClick={() => void regenerar()}>
+            Regenerar
+          </Button>
+        )}
+      </div>
+    </section>
   )
 }
 

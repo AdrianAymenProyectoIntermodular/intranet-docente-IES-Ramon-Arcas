@@ -97,6 +97,7 @@ export type Ticket = {
   /** Datos propios del tipo (ver TicketDatos*). */
   datos?: TicketDatos
   adjuntos?: AdjuntoMeta[]
+  borrador?: BorradorRrss | null
   solicitante_nombre?: string | null
   asignado_nombre?: string | null
 }
@@ -108,6 +109,16 @@ export type AdjuntoMeta = {
   tamano: number
   subido_por_id: string
   subido_en: string
+}
+
+export type BorradorRrss = {
+  estado: 'pendiente' | 'listo' | 'error'
+  texto?: string | null
+  /** "plantilla" = generador temporal sin IA */
+  proveedor?: string | null
+  modelo?: string | null
+  generado_en?: string | null
+  error?: string | null
 }
 
 export type TicketDatosRmi = { aula: string; dispositivos: string }

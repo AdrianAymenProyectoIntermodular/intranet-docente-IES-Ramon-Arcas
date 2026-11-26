@@ -59,6 +59,10 @@ export function createComentario(ticketId: string, cuerpo: string): Promise<Come
   })
 }
 
+export function regenerarBorrador(ticketId: string): Promise<Ticket> {
+  return apiFetch<Ticket>(`/api/v1/tickets/${ticketId}/borrador`, { method: 'POST' })
+}
+
 /* Adjuntos de tickets */
 export function subirAdjunto(ticketId: string, archivo: File): Promise<AdjuntoMeta> {
   return apiUpload<AdjuntoMeta>(`/api/v1/tickets/${ticketId}/adjuntos`, 'archivo', archivo)

@@ -1167,3 +1167,22 @@
     opacity: 1;
   }
 }
+
+/* Borrador para redes */
+.borrador {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px solid rgb(247 169 3 / 0.45);
+  background: var(--sol-wash);
+}
+.borrador-texto {
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  white-space: pre-line;
+  line-height: 1.6;
+}
