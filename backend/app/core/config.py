@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     ia_api_key: str = ""
     ia_modelo: str = ""
 
+    # Geocodificación de empresas FEM (Nominatim / OpenStreetMap).
+    geocodificacion_activa: bool = True
+    nominatim_url: str = "https://nominatim.openstreetmap.org/search"
+
     @model_validator(mode="after")
     def jwt_secret_must_be_strong_outside_dev(self) -> "Settings":
         """Fuera de development, exige un secreto JWT fuerte y no el default inseguro."""

@@ -33,6 +33,7 @@ async def lifespan(_app: FastAPI):
         anuncio_service,
         auditoria_service,
         emplazamiento_service,
+        fem_empresa_service,
         fem_service,
         retraso_service,
         ticket_service,
@@ -48,6 +49,7 @@ async def lifespan(_app: FastAPI):
     await alumno_service.ensure_indexes(db)
     await retraso_service.ensure_indexes(db)
     await emplazamiento_service.ensure_indexes(db)
+    await fem_empresa_service.ensure_indexes(db)
     yield
     await close_redis()
     await close_mongo()
