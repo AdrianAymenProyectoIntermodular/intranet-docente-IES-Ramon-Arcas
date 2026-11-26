@@ -143,6 +143,17 @@ abierto → en_proceso → resuelto → cerrado
 - Solo se aceptan transiciones válidas.
 - Transición inválida → `422` con `{"detail": "..."}`.
 
+### Datos por tipo (`datos`)
+
+Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previstos → `422`.
+
+| Tipo | Campos |
+|------|--------|
+| `rmi` | `aula`, `dispositivos` |
+| `compras` | `articulos`, `precio_total` (≥ 0), `requiere_presupuesto` (bool) |
+| `rrss` | `departamento` |
+| `otro` | sin datos |
+
 ### Asignación por tipo (competencias)
 
 - Cada usuario tiene `competencias`: los tipos de solicitud que gestiona (`rmi`, `compras`, `rrss`, `otro`). Solo cuentan si tiene el rol `responsable_ticket`; las edita `admin` con `PATCH /usuarios/{id}` (auditado).

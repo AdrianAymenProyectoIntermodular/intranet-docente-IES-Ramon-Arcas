@@ -2036,6 +2036,8 @@ components:
         creado_en:
           type: string
           format: date-time
+        datos:
+          $ref: '#/components/schemas/TicketDatos'
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0d4"
         tipo: rmi
@@ -2043,8 +2045,11 @@ components:
         titulo: Proyector aula 12 no enciende
         descripcion: No da imagen desde esta manana.
         solicitante_id: "64f1a2b3c4d5e6f7a8b9c0b1"
-        asignado_id: null
+        asignado_id: "64f1a2b3c4d5e6f7a8b9c0b3"
         creado_en: "2026-10-06T09:30:00Z"
+        datos:
+          aula: "12"
+          dispositivos: Proyector
 
     TicketCreate:
       type: object
@@ -2054,12 +2059,69 @@ components:
           $ref: '#/components/schemas/TicketTipo'
         titulo:
           type: string
+          maxLength: 140
         descripcion:
           type: string
+          maxLength: 4000
+        datos:
+          $ref: '#/components/schemas/TicketDatos'
       example:
         tipo: rmi
         titulo: Proyector aula 12 no enciende
         descripcion: No da imagen desde esta manana.
+        datos:
+          aula: "12"
+          dispositivos: Proyector
+
+    TicketDatos:
+      description: |
+        Datos específicos del tipo de solicitud (campo flexible). Se valida según
+        `tipo`: `rmi` → TicketDatosRmi, `compras` → TicketDatosCompras,
+        `rrss` → TicketDatosRrss, `otro` → objeto vacío. Campos no previstos → 422.
+        Obligatorio en la práctica para `rmi`, `compras` y `rrss`.
+      oneOf:
+        - $ref: '#/components/schemas/TicketDatosRmi'
+        - $ref: '#/components/schemas/TicketDatosCompras'
+        - $ref: '#/components/schemas/TicketDatosRrss'
+        - type: object
+          additionalProperties: false
+
+    TicketDatosRmi:
+      type: object
+      required: [aula, dispositivos]
+      additionalProperties: false
+      properties:
+        aula:
+          type: string
+          maxLength: 60
+        dispositivos:
+          type: string
+          maxLength: 200
+
+    TicketDatosCompras:
+      type: object
+      required: [articulos, precio_total]
+      additionalProperties: false
+      properties:
+        articulos:
+          type: string
+          maxLength: 2000
+        precio_total:
+          type: number
+          minimum: 0
+          maximum: 100000
+        requiere_presupuesto:
+          type: boolean
+          default: false
+
+    TicketDatosRrss:
+      type: object
+      required: [departamento]
+      additionalProperties: false
+      properties:
+        departamento:
+          type: string
+          maxLength: 80
 
     TicketPatch:
       type: object
