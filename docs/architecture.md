@@ -28,6 +28,7 @@ No comparten base de datos, sesión ni autenticación.
 
 - React + Vite + TypeScript
 - `react-router` (rutas reales sin recarga), `lucide-react` (iconografía), fuentes autoalojadas `@fontsource-variable` (Roboto Slab + Figtree)
+- `leaflet` + `react-leaflet` para el mapa FEM (teselas OpenStreetMap; geocodificación Nominatim en el backend)
 - Animaciones solo con CSS (sin librería de animación), respetando `prefers-reduced-motion`
 - Manifest + iconos instalables; service worker pendiente (Fase 4, junto a Web Push)
 

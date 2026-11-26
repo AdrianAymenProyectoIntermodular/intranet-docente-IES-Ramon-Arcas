@@ -19,13 +19,14 @@ import { listFemAlumnos, listFemEmpresas, patchFemHoras } from '../services/modu
 import type { FemAlumno } from '../services/types'
 import { FILTROS_VACIOS, type FiltrosEmpresas } from '../lib/fem'
 import { EmpresasPanel } from './fem/EmpresasPanel'
+import { MapaPanel } from './fem/MapaPanel'
 
 type Filtro = 'todos' | 'activo' | 'pendiente' | 'finalizado'
 
 const pct = (a: FemAlumno) => (a.horas_totales ? (a.horas_cursadas / a.horas_totales) * 100 : 0)
 
-type Vista = 'alumnado' | 'empresas'
-const VISTAS: Vista[] = ['alumnado', 'empresas']
+type Vista = 'alumnado' | 'empresas' | 'mapa'
+const VISTAS: Vista[] = ['alumnado', 'empresas', 'mapa']
 
 export function FemPage() {
   const user = useUser()
@@ -140,10 +141,13 @@ export function FemPage() {
         items={[
           { value: 'alumnado', label: 'Alumnado', count: alumnos.length },
           { value: 'empresas', label: 'Empresas', count: empresasApi.data?.length },
+          { value: 'mapa', label: 'Mapa' },
         ]}
       />
 
-      {vista === 'empresas' ? (
+      {vista === 'mapa' ? (
+        <MapaPanel empresas={empresasApi} filtros={filtrosEmpresas} onFiltros={setFiltrosEmpresas} />
+      ) : vista === 'empresas' ? (
         <EmpresasPanel empresas={empresasApi} filtros={filtrosEmpresas} onFiltros={setFiltrosEmpresas} />
       ) : loading ? (
         <Skeleton lines={6} height={22} />

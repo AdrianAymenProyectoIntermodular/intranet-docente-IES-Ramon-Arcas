@@ -46,6 +46,7 @@ npm run lint    # oxlint
 - **Tokens:** `styles/tokens.css` (colores, tipografía, espaciado, radios, sombras y movimiento). Acento `#F7A903`, el amarillo del logotipo. Sobre el acento el texto va en marino, porque el blanco no alcanza contraste AA.
 - **Tipografía:** Roboto Slab para titulares (eco de la slab del logotipo) y Figtree para el texto, ambas autoalojadas con `@fontsource`.
 - **Iconos:** `lucide-react`.
+- **Mapa FEM:** `leaflet` + `react-leaflet` con teselas de OpenStreetMap (carga diferida).
 - **Animaciones:** solo CSS. Hay una entrada de página orquestada y respuestas a acciones (menús, modales, toasts, estados). Todo respeta `prefers-reduced-motion`.
 
 ## Estructura
@@ -66,5 +67,4 @@ src/
 ## Limitaciones conocidas (dependen de la API)
 
 - El borrador de RRSS con IA aún no está conectado a ningún modelo.
-- El mapa de FEM necesita la ubicación de las empresas, que la API aún no guarda.
 - La PWA tiene manifest e iconos, pero todavía no tiene service worker: llega en la Fase 4, junto con las notificaciones push.
