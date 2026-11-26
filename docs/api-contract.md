@@ -36,6 +36,7 @@ Estos listados devuelven un **array** (no el wrapper paginado), porque se consul
 | `GET /api/v1/tickets` | Cola filtrada por `tipo` / `estado` |
 | `GET /api/v1/guardias` | Cuadrante por `fecha` / `franja` |
 | `POST /api/v1/guardias/asignar` | Resultado de la ejecución (array de `Guardia`) |
+| `GET /api/v1/alumnos` | Selector acotado (máx. 50) por `grupo` / `q` |
 
 Usuarios, retrasos, notificaciones y auditoría sí usan `{ items, page, limit, total }`.
 
@@ -162,6 +163,12 @@ abierto → en_proceso → resuelto → cerrado
 | POST | `/api/v1/retrasos` | Auth | `docente`, `admin` | Registrar retraso; `201` + `Location` |
 | GET | `/api/v1/retrasos/{id}` | Auth | `docente`, `admin` | Detalle |
 | GET | `/api/v1/alumnos/{id}/retrasos` | Auth | `docente`, `admin` | Histórico paginado (`?curso_escolar=&page=&limit=`) |
+| GET | `/api/v1/alumnos` | Auth | `docente`, `admin` | Selector de alumnado (`?grupo=&q=`), array acotado a 50 |
+
+- `curso_escolar` lo calcula el servidor (septiembre–agosto, p. ej. `2026/2027`); `grupo` se copia del alumno.
+- Auditoría: `retrasos.create` en cada alta y `retrasos.consulta_historico` en **cada** consulta del histórico (datos de menores; 503 si no se puede registrar).
+- Sin estadísticas agregadas para el docente: solo el Dashboard directivo.
+- `Alumno` expone únicamente `id`, `nombre`, `grupo`, `curso`.
 
 ## Notificaciones
 
@@ -182,7 +189,7 @@ Las notificaciones **no se crean desde la API**: las generan los servicios ante 
 
 Filtros: `usuario_id`, `accion`, `recurso_tipo`, `recurso_id`, `desde`, `hasta` (ISO 8601), `page`, `limit` (default 10). Intervalo inválido (`desde` > `hasta`) → 422.
 
-Acciones runtime: `auth.login_google`, `auth.login_failed`, `auth.logout`, `usuarios.create`, `usuarios.patch`, `usuarios.put_roles`.  
+Acciones runtime: `auth.login_google`, `auth.login_failed`, `auth.logout`, `usuarios.create`, `usuarios.patch`, `usuarios.put_roles`, `retrasos.create`, `retrasos.consulta_historico`.  
 En `patch` / `put_roles` el `detalle` incluye `antes` y `despues`. Las mutaciones de usuarios exigen persistir la traza (503 si falla Mongo); login/logout usan best-effort con log.
 
 ## Health
@@ -223,4 +230,4 @@ Módulos de la memoria del proyecto **sin endpoints** en este OpenAPI (se defini
 - Librerías concretas de PDF, email y Web Push (VAPID).
 - Si el autor puede corregir o borrar un retraso mal registrado, y en qué plazo.
 - Preferencias de canal de notificación y plazo de conservación de notificaciones/auditoría.
-- Fuente canónica de alumnado (`alumno_id`) compartida con FEM/retrasos.
+- Fuente canónica de alumnado: **resuelto parcialmente** — la intranet tiene su propia colección `alumnos` (retrasos). FEM sigue usando `fem_alumnos`; **PENDIENTE DE DECISIÓN** si se unifican y de dónde se importa el alumnado (altas hoy solo vía seed de desarrollo).

@@ -1220,6 +1220,45 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/alumnos:
+    get:
+      tags: [Retrasos]
+      summary: Selector de alumnado
+      description: |
+        Busqueda acotada (maximo 50 resultados) para registrar retrasos.
+        Solo expone id, nombre, grupo y curso. Devuelve array (excepcion de paginacion).
+      operationId: listAlumnos
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: grupo
+          in: query
+          required: false
+          schema:
+            type: string
+            example: 1ESO-A
+        - name: q
+          in: query
+          required: false
+          description: Fragmento del nombre (sin distinguir mayusculas)
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        '200':
+          description: Alumnado que coincide con el filtro
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items:
+                  $ref: '#/components/schemas/Alumno'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/v1/alumnos/{id}/retrasos:
     get:
       tags: [Retrasos]
@@ -2143,6 +2182,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SuscripcionPush'
+
+    Alumno:
+      type: object
+      required: [id, nombre, grupo, curso]
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        grupo:
+          type: string
+          example: 1ESO-A
+        curso:
+          type: string
+          example: 1º ESO
 
     RetrasoCreate:
       type: object
