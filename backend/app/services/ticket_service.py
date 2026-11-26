@@ -201,6 +201,11 @@ def puede_gestionar_ticket(user: UsuarioPublic, ticket: Ticket) -> bool:
     return False
 
 
+def puede_adjuntar(user: UsuarioPublic, ticket: Ticket) -> bool:
+    """Subir archivos: quien pidió la solicitud, su responsable asignado o admin."""
+    return "admin" in user.roles or user.id in (ticket.solicitante_id, ticket.asignado_id)
+
+
 def puede_comentar(user_roles: list[str], ticket: Ticket, user_id: str) -> bool:
     """Comentar: admin/responsable_ticket, o dueño (solicitante) / asignado."""
     if "admin" in user_roles or "responsable_ticket" in user_roles:

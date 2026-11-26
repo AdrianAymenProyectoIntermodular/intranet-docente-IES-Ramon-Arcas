@@ -70,6 +70,17 @@ DATOS_POR_TIPO: dict[TicketTipo, type[BaseModel]] = {
 }
 
 
+class AdjuntoMeta(BaseModel):
+    """Metadatos de un archivo adjunto (el contenido vive en GridFS)."""
+
+    id: str
+    nombre: str
+    tipo_mime: str
+    tamano: int
+    subido_por_id: str
+    subido_en: datetime
+
+
 class Ticket(BaseModel):
     id: str
     tipo: TicketTipo
@@ -80,6 +91,7 @@ class Ticket(BaseModel):
     asignado_id: str | None = None
     creado_en: datetime | None = None
     datos: dict[str, Any] = Field(default_factory=dict)
+    adjuntos: list[AdjuntoMeta] = Field(default_factory=list)
     # Nombres resueltos por el servidor (solo lectura).
     solicitante_nombre: str | None = None
     asignado_nombre: str | None = None
@@ -134,6 +146,7 @@ def doc_to_ticket(doc: dict[str, Any]) -> Ticket:
         asignado_id=doc.get("asignado_id"),
         creado_en=doc.get("creado_en"),
         datos=doc.get("datos") or {},
+        adjuntos=[AdjuntoMeta(**a) for a in doc.get("adjuntos") or []],
     )
 
 

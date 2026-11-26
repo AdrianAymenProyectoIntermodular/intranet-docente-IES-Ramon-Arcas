@@ -2,11 +2,14 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from urllib.parse import quote
+
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 
 from app.core.database import get_db
 from app.core.deps import CurrentActiveUser, require_roles
 from app.models.ticket import (
+    AdjuntoMeta,
     Comentario,
     ComentarioCreate,
     Ticket,
@@ -16,7 +19,7 @@ from app.models.ticket import (
     TicketTipo,
 )
 from app.models.usuario import UsuarioPublic
-from app.services import ticket_service
+from app.services import adjunto_service, auditoria_service, ticket_service
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -103,3 +106,81 @@ async def create_comentario(
     )
     response.headers["Location"] = f"/api/v1/tickets/{id}/comentarios/{comentario.id}"
     return comentario
+
+
+@router.post(
+    "/{id}/adjuntos",
+    response_model=AdjuntoMeta,
+    status_code=status.HTTP_201_CREATED,
+)
+async def subir_adjunto(
+    id: str,
+    response: Response,
+    current: CurrentActiveUser,
+    archivo: UploadFile = File(...),
+) -> AdjuntoMeta:
+    """Imágenes (RRSS, RMI) o presupuesto (compras). Máx. 5 MB y 10 por solicitud."""
+    db = get_db()
+    ticket = await ticket_service.get_ticket(db, id)
+    if not ticket_service.puede_adjuntar(current, ticket):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo quien pidió la solicitud, su responsable o administración pueden adjuntar archivos",
+        )
+    meta = await adjunto_service.subir(db, ticket, archivo, usuario_id=current.id)
+    await auditoria_service.record_required(
+        db,
+        accion="tickets.adjunto_create",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="ticket",
+        recurso_id=ticket.id,
+        detalle={"adjunto_id": meta.id, "nombre": meta.nombre, "tamano": meta.tamano},
+    )
+    response.headers["Location"] = f"/api/v1/tickets/{id}/adjuntos/{meta.id}"
+    return meta
+
+
+@router.get("/{id}/adjuntos/{adjunto_id}", response_class=Response)
+async def descargar_adjunto(id: str, adjunto_id: str, current: CurrentActiveUser) -> Response:
+    db = get_db()
+    ticket = await ticket_service.get_ticket(db, id)
+    if not ticket_service.puede_comentar(current.roles, ticket, current.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sin permiso para ver los adjuntos de esta solicitud",
+        )
+    meta = adjunto_service.buscar(ticket, adjunto_id)
+    contenido = await adjunto_service.leer(db, meta)
+    return Response(
+        content=contenido,
+        media_type=meta.tipo_mime,
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{quote(meta.nombre)}",
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, max-age=300",
+        },
+    )
+
+
+@router.delete("/{id}/adjuntos/{adjunto_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def borrar_adjunto(id: str, adjunto_id: str, current: CurrentActiveUser) -> Response:
+    db = get_db()
+    ticket = await ticket_service.get_ticket(db, id)
+    meta = adjunto_service.buscar(ticket, adjunto_id)
+    if "admin" not in current.roles and meta.subido_por_id != current.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo quien subió el archivo o administración pueden borrarlo",
+        )
+    await adjunto_service.borrar(db, ticket, meta)
+    await auditoria_service.record_required(
+        db,
+        accion="tickets.adjunto_delete",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="ticket",
+        recurso_id=ticket.id,
+        detalle={"adjunto_id": meta.id, "nombre": meta.nombre},
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
