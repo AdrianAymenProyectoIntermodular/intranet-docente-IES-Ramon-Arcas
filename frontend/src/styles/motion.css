@@ -80,8 +80,9 @@
   }
 }
 
-/* Entrada de página: el contenedor y sus bloques directos con un escalonado breve. */
-.page-enter > * {
+/* Entrada de página: el contenedor y sus bloques directos con un escalonado breve.
+   Los <dialog> se excluyen: tienen su propia animación al abrirse. */
+.page-enter > :not(dialog) {
   animation: page-in var(--t-slow) var(--ease) both;
 }
 .page-enter > *:nth-child(2) {
