@@ -1419,6 +1419,29 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/dashboard/fem:
+    get:
+      tags: [Dashboard]
+      summary: Indicadores de Formación en Empresas
+      description: |
+        KPI 5: porcentaje de empresas activas sobre las registradas, en total, por
+        municipio y por ciclo. KPI 6: horas FEM cursadas sobre las previstas (500 por
+        alumno). Roles `directiva`, `admin`.
+      operationId: getDashboardFem
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Indicadores FEM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardFem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/v1/retrasos:
     post:
       tags: [Retrasos]
@@ -2726,6 +2749,52 @@ components:
             alumnos:
               type: integer
               description: Alumnado en prácticas ahora en la empresa
+
+    ProporcionActivas:
+      type: object
+      required: [nombre, total, activas, porcentaje]
+      properties:
+        nombre:
+          type: string
+          description: Municipio o ciclo
+        total:
+          type: integer
+        activas:
+          type: integer
+        porcentaje:
+          type: number
+          example: 66.7
+
+    DashboardFem:
+      type: object
+      required: [empresas_total, empresas_activas, porcentaje_activas, por_municipio, por_ciclo, horas]
+      properties:
+        empresas_total:
+          type: integer
+        empresas_activas:
+          type: integer
+        porcentaje_activas:
+          type: number
+        por_municipio:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProporcionActivas'
+        por_ciclo:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProporcionActivas'
+        horas:
+          type: object
+          required: [alumnos, cursadas, previstas, porcentaje]
+          properties:
+            alumnos:
+              type: integer
+            cursadas:
+              type: number
+            previstas:
+              type: number
+            porcentaje:
+              type: number
 
     DashboardKpis:
       type: object

@@ -201,6 +201,7 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 | Método | Endpoint | Auth | Roles | Descripción |
 |--------|----------|------|-------|-------------|
 | GET | `/api/v1/dashboard/kpis` | Auth | `directiva`, `admin` | Indicadores del centro |
+| GET | `/api/v1/dashboard/fem` | Auth | `directiva`, `admin` | KPI 5 (empresas activas por municipio y ciclo) y KPI 6 (horas sobre las previstas) |
 
 ## Retrasos
 
