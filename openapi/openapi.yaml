@@ -35,6 +35,8 @@ tags:
     description: KPIs para equipo directivo
   - name: Retrasos
     description: Registro de retrasos del alumnado e historico individual
+  - name: Emplazamientos
+    description: Diseños de pupitres del aula por grupo y módulo
   - name: Notificaciones
     description: Bandeja de notificaciones y suscripciones Web Push
   - name: Auditoria
@@ -1427,6 +1429,136 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/emplazamientos:
+    get:
+      tags: [Emplazamientos]
+      summary: Diseños de aula de una clase
+      description: Array (excepción de paginación) ordenado por última modificación; máx. 100.
+      operationId: listEmplazamientos
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: grupo
+          in: query
+          schema:
+            type: string
+        - name: modulo
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Diseños
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Emplazamientos]
+      summary: Crear un diseño de aula
+      description: |
+        Roles `docente`, `admin`. Validación: puestos dentro de la rejilla, sin
+        posiciones ni alumnos repetidos y alumnado del mismo grupo; si no, 422.
+      operationId: createEmplazamiento
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmplazamientoCreate'
+      responses:
+        '201':
+          description: Diseño creado
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/emplazamientos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [Emplazamientos]
+      summary: Detalle de un diseño
+      operationId: getEmplazamiento
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Diseño
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Emplazamientos]
+      summary: Sustituir un diseño
+      description: Solo el autor o `admin` (403).
+      operationId: replaceEmplazamiento
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmplazamientoCreate'
+      responses:
+        '200':
+          description: Diseño actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+    delete:
+      tags: [Emplazamientos]
+      summary: Borrar un diseño
+      description: Solo el autor o `admin` (403).
+      operationId: deleteEmplazamiento
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Diseño borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/notificaciones:
     get:
       tags: [Notificaciones]
@@ -2552,6 +2684,79 @@ components:
     NotificacionTipo:
       type: string
       enum: [anuncio_destacado, guardia_asignada, horario_modificado, ticket_estado]
+
+    Puesto:
+      type: object
+      required: [fila, columna]
+      additionalProperties: false
+      properties:
+        fila:
+          type: integer
+          minimum: 0
+          maximum: 9
+        columna:
+          type: integer
+          minimum: 0
+          maximum: 9
+        alumno_id:
+          type: string
+          nullable: true
+        equipo:
+          type: string
+          nullable: true
+          maxLength: 20
+
+    EmplazamientoCreate:
+      type: object
+      required: [nombre, grupo, modulo, distribucion, filas, columnas]
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+          maxLength: 80
+        grupo:
+          type: string
+          example: 1ESO-A
+        modulo:
+          type: string
+          example: Matemáticas
+        distribucion:
+          type: string
+          enum: [filas, parejas, grupos, u, personalizada]
+        filas:
+          type: integer
+          minimum: 1
+          maximum: 10
+        columnas:
+          type: integer
+          minimum: 1
+          maximum: 10
+        puestos:
+          type: array
+          description: Pupitres de la rejilla; las celdas sin puesto son pasillo.
+          items:
+            $ref: '#/components/schemas/Puesto'
+
+    Emplazamiento:
+      allOf:
+        - $ref: '#/components/schemas/EmplazamientoCreate'
+        - type: object
+          required: [id, autor_id]
+          properties:
+            id:
+              type: string
+            autor_id:
+              type: string
+            autor_nombre:
+              type: string
+              nullable: true
+              readOnly: true
+            creado_en:
+              type: string
+              format: date-time
+            actualizado_en:
+              type: string
+              format: date-time
 
     Notificacion:
       type: object

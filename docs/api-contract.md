@@ -39,6 +39,7 @@ Estos listados devuelven un **array** (no el wrapper paginado), porque se consul
 | `GET /api/v1/guardias` | Cuadrante por `fecha` / `franja` |
 | `POST /api/v1/guardias/asignar` | Resultado de la ejecución (array de `Guardia`) |
 | `GET /api/v1/alumnos` | Selector acotado (máx. 50) por `grupo` / `q` |
+| `GET /api/v1/emplazamientos` | Diseños de una clase (máx. 100) |
 
 Usuarios, retrasos, notificaciones y auditoría sí usan `{ items, page, limit, total }`.
 
@@ -208,6 +209,20 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 - Sin estadísticas agregadas para el docente: solo el Dashboard directivo.
 - `Alumno` expone únicamente `id`, `nombre`, `grupo`, `curso`.
 
+## Emplazamientos (aula)
+
+| Método | Endpoint | Auth | Roles / regla | Descripción |
+|--------|----------|------|---------------|-------------|
+| GET | `/api/v1/emplazamientos` | Auth | `docente`, `admin` | Diseños de una clase (`?grupo=&modulo=`) → array |
+| POST | `/api/v1/emplazamientos` | Auth | `docente`, `admin` | Crear diseño; `201` + `Location` |
+| GET | `/api/v1/emplazamientos/{id}` | Auth | `docente`, `admin` | Detalle |
+| PUT | `/api/v1/emplazamientos/{id}` | Auth | autor o `admin` | Sustituir diseño |
+| DELETE | `/api/v1/emplazamientos/{id}` | Auth | autor o `admin` | Borrar (`204`) |
+
+- Rejilla de hasta 10×10; `puestos` son los pupitres (las celdas sin puesto son pasillo), cada uno con `alumno_id` y `equipo` opcionales.
+- `distribucion`: `filas`, `parejas`, `grupos`, `u`, `personalizada` (orientativa para la interfaz).
+- `422` si un puesto queda fuera de la rejilla, se repite posición o alumno, o algún alumno no pertenece al grupo.
+
 ## Notificaciones
 
 | Método | Endpoint | Auth | Roles / regla | Descripción |
@@ -252,7 +267,6 @@ Módulos de la memoria del proyecto **sin endpoints** en este OpenAPI (se defini
 
 | Módulo memoria | Notas |
 |----------------|-------|
-| Emplazamiento de alumnado en el aula | Diseños de aula configurables |
 | Aula de convivencia | Alta por jefatura; vínculo con guardias de destino |
 | Comparador de horarios | Intersección de huecos libres entre docentes |
 | Repositorio documental | Docs por departamento / proyecto |
