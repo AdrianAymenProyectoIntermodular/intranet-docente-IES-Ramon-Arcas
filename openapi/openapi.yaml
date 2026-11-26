@@ -1277,6 +1277,129 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 
+  /api/v1/fem/empresas:
+    get:
+      tags: [FEM]
+      summary: Empresas colaboradoras
+      description: |
+        Array con ubicación (`lat`, `lon`) para el mapa y número de alumnos en
+        prácticas ahora (`alumnos`). Roles `tutor`, `admin`, `directiva`.
+      operationId: listFemEmpresas
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: municipio
+          in: query
+          schema:
+            type: string
+        - name: ciclo
+          in: query
+          schema:
+            type: string
+        - name: activa
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Empresas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [FEM]
+      summary: Alta de empresa colaboradora
+      description: |
+        Solo `admin`. La dirección se geocodifica con Nominatim (1 petición/s, solo
+        la dirección). Si no se encuentra, se guarda con `geocodificada: false`.
+      operationId: createFemEmpresa
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FemEmpresaCreate'
+      responses:
+        '201':
+          description: Empresa creada
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/fem/empresas/{id}:
+    patch:
+      tags: [FEM]
+      summary: Modificar empresa
+      description: Solo `admin`. Si cambia la dirección o el municipio se vuelve a geocodificar.
+      operationId: patchFemEmpresa
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FemEmpresaPatch'
+      responses:
+        '200':
+          description: Empresa actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/fem/empresas/{id}/geocodificar:
+    post:
+      tags: [FEM]
+      summary: Reintentar la geocodificación
+      description: Solo `admin`. Si no se encuentra, conserva las coordenadas que hubiera.
+      operationId: geocodificarFemEmpresa
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Empresa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/dashboard/kpis:
     get:
       tags: [Dashboard]
@@ -2521,12 +2644,19 @@ components:
           example: 500
         tutor_id:
           type: string
-
+        empresa_id:
+          type: string
+          nullable: true
+        ciclo:
+          type: string
+          nullable: true
+          example: DAW
         tutor_nombre:
           type: string
           nullable: true
           readOnly: true
           description: Nombre del tutor (resuelto por el servidor)
+
     FemHorasPatch:
       type: object
       required: [horas_cursadas]
@@ -2535,6 +2665,67 @@ components:
           type: number
           minimum: 0
           maximum: 500
+
+    FemEmpresaCreate:
+      type: object
+      required: [nombre, direccion, municipio]
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+          maxLength: 120
+        direccion:
+          type: string
+          maxLength: 200
+        municipio:
+          type: string
+          example: Lorca
+        ciclos:
+          type: array
+          items:
+            type: string
+          example: [DAW, SMR]
+        activa:
+          type: boolean
+          default: true
+
+    FemEmpresaPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+        direccion:
+          type: string
+        municipio:
+          type: string
+        ciclos:
+          type: array
+          items:
+            type: string
+        activa:
+          type: boolean
+
+    FemEmpresa:
+      allOf:
+        - $ref: '#/components/schemas/FemEmpresaCreate'
+        - type: object
+          required: [id, geocodificada, alumnos]
+          properties:
+            id:
+              type: string
+            lat:
+              type: number
+              nullable: true
+            lon:
+              type: number
+              nullable: true
+            geocodificada:
+              type: boolean
+              description: false si la dirección no se pudo situar en el mapa
+            alumnos:
+              type: integer
+              description: Alumnado en prácticas ahora en la empresa
 
     DashboardKpis:
       type: object

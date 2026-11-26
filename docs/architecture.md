@@ -122,7 +122,7 @@ Sin endpoints en OpenAPI todavía (detalle en [api-contract.md](api-contract.md)
 - Aula de convivencia, comparador de horarios
 - Repositorio documental, reservas de espacios/recursos, comisiones de servicio
 - Onboarding / primeros pasos (contenido)
-- Mapa FEM / empresas, generación IA de borrador RRSS, Google Calendar
+- Google Calendar
 
 ## Decisiones cerradas
 

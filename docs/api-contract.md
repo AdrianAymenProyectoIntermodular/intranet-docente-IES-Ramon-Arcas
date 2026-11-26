@@ -188,6 +188,13 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 |--------|----------|------|-------|-------------|
 | GET | `/api/v1/fem/alumnos` | Auth | `tutor`, `admin` | Alumnado asignado |
 | PATCH | `/api/v1/fem/alumnos/{id}/horas` | Auth | `tutor`, `admin` | Actualizar horas cursadas |
+| GET | `/api/v1/fem/empresas` | Auth | `tutor`, `admin`, `directiva` | Empresas con ubicación (`?municipio=&ciclo=&activa=`) → array |
+| POST | `/api/v1/fem/empresas` | Auth | `admin` | Alta (geocodifica la dirección); `201` + `Location` |
+| PATCH | `/api/v1/fem/empresas/{id}` | Auth | `admin` | Modificar (re-geocodifica si cambia la dirección) |
+| POST | `/api/v1/fem/empresas/{id}/geocodificar` | Auth | `admin` | Reintentar ubicación |
+
+- Geocodificación con Nominatim (OpenStreetMap): máx. 1 petición/s, User-Agent de la aplicación, solo la dirección de la empresa. `GEOCODIFICACION_ACTIVA=false` la desactiva.
+- `FemAlumno` incluye `empresa_id` y `ciclo`.
 
 ## Dashboard
 
@@ -273,7 +280,6 @@ Módulos de la memoria del proyecto **sin endpoints** en este OpenAPI (se defini
 | Reserva de espacios y recursos | Con detección de solapamientos |
 | Comisiones de servicio | Reutilizará flujo de PDF/firma de ausencias |
 | Onboarding / primeros pasos | Guía de bienvenida (contenido, no solo `pendiente→activo`) |
-| Mapa FEM / empresas | Geolocalización (Leaflet + Nominatim) |
 | Generación IA borrador RRSS | Entrada al ticket `tipo=rrss`; no publica en redes |
 | Google Calendar | Sincronización de horarios/ausencias |
 
