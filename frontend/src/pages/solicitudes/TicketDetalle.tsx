@@ -10,7 +10,7 @@ import { Select, Textarea } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../components/ui/toast-context'
 import { useApi } from '../../hooks/useApi'
-import { useDirectorio } from '../../hooks/useDirectorio'
+import { useNombre } from '../../hooks/useNombre'
 import { formatFechaHora } from '../../lib/format'
 import {
   ACCION_SIGUIENTE,
@@ -64,7 +64,7 @@ export function TicketDetalle({
 function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated: (t: Ticket) => void }) {
   const user = useUser()
   const toast = useToast()
-  const dir = useDirectorio()
+  const nombre = useNombre()
   const gestiona = puedeGestionar(user, t)
   const esAdmin = user.roles.includes('admin')
   const comenta = puedeComentar(user.roles, t, user.id)
@@ -125,11 +125,11 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
       <dl className="meta-grid">
         <div>
           <dt>Solicitante</dt>
-          <dd>{dir.nombre(t.solicitante_id)}</dd>
+          <dd>{nombre(t.solicitante_id, t.solicitante_nombre)}</dd>
         </div>
         <div>
           <dt>Responsable</dt>
-          <dd>{dir.nombre(t.asignado_id)}</dd>
+          <dd>{nombre(t.asignado_id, t.asignado_nombre)}</dd>
         </div>
         <div>
           <dt>Creada</dt>
@@ -257,7 +257,7 @@ function Reasignar({ ticket, onUpdated }: { ticket: Ticket; onUpdated: (t: Ticke
 
 function Comentarios({ ticket, puedeComentar }: { ticket: Ticket; puedeComentar: boolean }) {
   const toast = useToast()
-  const dir = useDirectorio()
+  const nombre = useNombre()
   const comentarios = useApi(
     () => (puedeComentar ? listComentarios(ticket.id) : Promise.resolve([])),
     [ticket.id, puedeComentar],
@@ -302,10 +302,10 @@ function Comentarios({ ticket, puedeComentar }: { ticket: Ticket; puedeComentar:
         <ol className="timeline">
           {(comentarios.data ?? []).map((c) => (
             <li key={c.id} className="timeline-item">
-              <Avatar name={dir.nombre(c.autor_id)} size={28} />
+              <Avatar name={c.autor_nombre ?? '?'} size={28} />
               <div className="grow">
                 <p className="timeline-head">
-                  <strong>{dir.nombre(c.autor_id)}</strong>{' '}
+                  <strong>{nombre(c.autor_id, c.autor_nombre)}</strong>{' '}
                   <span className="subtle">{formatFechaHora(c.creado_en)}</span>
                 </p>
                 <p className="timeline-body">{c.cuerpo}</p>

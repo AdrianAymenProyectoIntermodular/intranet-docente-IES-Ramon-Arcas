@@ -14,7 +14,6 @@ import { Modal } from '../components/ui/Modal'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toast-context'
 import { useApi } from '../hooks/useApi'
-import { invalidarDirectorio } from '../hooks/useDirectorio'
 import { departamentosCon } from '../lib/centro'
 import { TIPO_TICKET } from '../lib/labels'
 import { ROL_DESCRIPCION, ROL_LABEL, ROLES } from '../lib/permissions'
@@ -52,7 +51,6 @@ export function UsuariosPage() {
   const pendientes = useApi(() => listUsuarios({ estado: 'pendiente', limit: 1 }).then((r) => r.total))
 
   const recargar = () => {
-    invalidarDirectorio()
     void lista.reload()
     void pendientes.reload()
   }

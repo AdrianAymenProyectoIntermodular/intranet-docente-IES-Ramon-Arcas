@@ -11,7 +11,6 @@ import { Modal } from '../components/ui/Modal'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toast-context'
 import { useApi } from '../hooks/useApi'
-import { useDirectorio } from '../hooks/useDirectorio'
 import { departamentosCon } from '../lib/centro'
 import { formatFecha, formatRelativa, isoLocal, parseApiDate } from '../lib/format'
 import { puede } from '../lib/permissions'
@@ -24,7 +23,6 @@ type Ambito = 'todos' | 'general' | 'departamento'
 export function AnunciosPage() {
   const user = useUser()
   const toast = useToast()
-  const dir = useDirectorio()
   const location = useLocation()
   const { data, error, loading, reload, setData } = useApi(() => listAnuncios())
   const [ambito, setAmbito] = useState<Ambito>('todos')
@@ -137,7 +135,7 @@ export function AnunciosPage() {
                 <AnuncioCard
                   key={a.id}
                   anuncio={a}
-                  autor={dir.conocido(a.autor_id)}
+                  autor={a.autor_id === user.id ? 'Tú' : (a.autor_nombre ?? null)}
                   puedeFijar={puedeFijar}
                   ahora={ahora}
                   onFijar={() => void toggleFijado(a)}
@@ -151,7 +149,7 @@ export function AnunciosPage() {
               <AnuncioCard
                 key={a.id}
                 anuncio={a}
-                autor={dir.conocido(a.autor_id)}
+                autor={a.autor_id === user.id ? 'Tú' : (a.autor_nombre ?? null)}
                 puedeFijar={puedeFijar}
                 ahora={ahora}
                 onFijar={() => void toggleFijado(a)}

@@ -72,6 +72,7 @@ export type Anuncio = {
   expira_en: string | null
   creado_en: string | null
   autor_id?: string | null
+  autor_nombre?: string | null
 }
 
 export type AnuncioCreatePayload = {
@@ -95,6 +96,8 @@ export type Ticket = {
   creado_en: string | null
   /** Datos propios del tipo (ver TicketDatos*). */
   datos?: TicketDatos
+  solicitante_nombre?: string | null
+  asignado_nombre?: string | null
 }
 
 export type TicketDatosRmi = { aula: string; dispositivos: string }
@@ -120,6 +123,7 @@ export type Comentario = {
   cuerpo: string
   creado_en: string
   ticket_id?: string | null
+  autor_nombre?: string | null
 }
 
 export type FemAlumno = {
@@ -130,6 +134,7 @@ export type FemAlumno = {
   horas_cursadas: number
   horas_totales: number
   tutor_id: string | null
+  tutor_nombre?: string | null
 }
 
 export type DashboardKpis = {

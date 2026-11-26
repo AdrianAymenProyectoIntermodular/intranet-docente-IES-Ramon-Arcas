@@ -12,7 +12,7 @@ import { Panel } from '../components/ui/Panel'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toast-context'
 import { useApi } from '../hooks/useApi'
-import { useDirectorio } from '../hooks/useDirectorio'
+import { useNombre } from '../hooks/useNombre'
 import { ESTADO_FEM } from '../lib/labels'
 import { errorMessage } from '../services/api'
 import { listFemAlumnos, patchFemHoras } from '../services/modulos'
@@ -24,7 +24,7 @@ const pct = (a: FemAlumno) => (a.horas_totales ? (a.horas_cursadas / a.horas_tot
 
 export function FemPage() {
   const user = useUser()
-  const dir = useDirectorio()
+  const nombre = useNombre()
   const toast = useToast()
   const esAdmin = user.roles.includes('admin')
   const { data, error, loading, reload, setData } = useApi(() => listFemAlumnos())
@@ -54,7 +54,7 @@ export function FemPage() {
       render: (a) => (
         <span className="cell-main">
           <span className="cell-title">{a.nombre}</span>
-          {esAdmin && <span className="subtle cell-sub">Tutor: {dir.nombre(a.tutor_id)}</span>}
+          {esAdmin && <span className="subtle cell-sub">Tutor: {nombre(a.tutor_id, a.tutor_nombre)}</span>}
         </span>
       ),
     },

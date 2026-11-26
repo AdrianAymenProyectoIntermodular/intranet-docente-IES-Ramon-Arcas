@@ -60,16 +60,3 @@ export function putRoles(id: string, roles: Role[]): Promise<UsuarioPublic> {
     body: JSON.stringify({ roles }),
   })
 }
-
-/** Carga todo el claustro paginando (solo admin). Usado para mostrar nombres en lugar de IDs. */
-export async function listTodosLosUsuarios(): Promise<UsuarioPublic[]> {
-  const all: UsuarioPublic[] = []
-  let page = 1
-  for (;;) {
-    const res = await listUsuarios({ page, limit: 50 })
-    all.push(...res.items)
-    if (all.length >= res.total || res.items.length === 0) break
-    page += 1
-  }
-  return all
-}

@@ -11,7 +11,7 @@ import { Checkbox, Select } from '../../components/ui/Field'
 import { Tabs } from '../../components/ui/Tabs'
 import { useToast } from '../../components/ui/toast-context'
 import { useApi } from '../../hooks/useApi'
-import { useDirectorio } from '../../hooks/useDirectorio'
+import { useNombre } from '../../hooks/useNombre'
 import { formatFecha, formatRelativa, parseApiDate } from '../../lib/format'
 import { ESTADO_TICKET, ORDEN_ESTADOS, resumenDatos, TIPO_TICKET } from '../../lib/labels'
 import { listTickets } from '../../services/modulos'
@@ -25,7 +25,7 @@ const TIPOS: FiltroTipo[] = ['todas', 'rmi', 'compras', 'rrss', 'otro']
 export function SolicitudesPage() {
   const user = useUser()
   const toast = useToast()
-  const dir = useDirectorio()
+  const nombre = useNombre()
   const [params, setParams] = useSearchParams()
   const { data, error, loading, reload, setData } = useApi(() => listTickets())
   const [texto, setTexto] = useState('')
@@ -105,8 +105,8 @@ export function SolicitudesPage() {
       key: 'responsable',
       header: 'Responsable',
       hideOnMobile: true,
-      sortValue: (t) => dir.nombre(t.asignado_id),
-      render: (t) => <span className={t.asignado_id ? undefined : 'subtle'}>{dir.nombre(t.asignado_id)}</span>,
+      sortValue: (t) => nombre(t.asignado_id, t.asignado_nombre),
+      render: (t) => <span className={t.asignado_id ? undefined : 'subtle'}>{nombre(t.asignado_id, t.asignado_nombre)}</span>,
     },
     {
       key: 'fecha',

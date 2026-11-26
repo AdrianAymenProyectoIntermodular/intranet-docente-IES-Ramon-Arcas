@@ -56,7 +56,7 @@ src/
 ├── components/
 │   ├── layout/        # AppShell, Sidebar, BottomNav, PageHeader, RequireRole
 │   └── ui/            # Button, Field, Modal, ConfirmDialog, DataTable, Tabs, Toast, Feedback…
-├── hooks/             # useApi, useDirectorio, useMediaQuery
+├── hooks/             # useApi, useNombre, useMediaQuery
 ├── lib/               # permisos, navegación, etiquetas, formato de fechas, horario
 ├── pages/             # una vista por módulo
 ├── services/          # api.ts (HTTP + refresh) y servicios por dominio + tipos
@@ -65,8 +65,6 @@ src/
 
 ## Limitaciones conocidas (dependen de la API)
 
-- Fuera de administración no se pueden resolver nombres de otros usuarios: `/usuarios/{id}` solo lo pueden usar admin o el propio usuario. Por eso se muestra "Tú" o un identificador corto.
-- Los tickets no tienen un campo de datos por tipo. Los campos específicos (aula, dispositivos, precio…) se componen en la descripción.
 - Las solicitudes de RRSS y compras no admiten aún imágenes ni adjuntos, ni la generación del borrador con IA.
 - El mapa de FEM necesita la ubicación de las empresas, que la API aún no guarda.
 - La PWA tiene manifest e iconos, pero todavía no tiene service worker: llega en la Fase 4, junto con las notificaciones push.
