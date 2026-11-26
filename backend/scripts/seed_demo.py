@@ -74,13 +74,22 @@ APELLIDOS = [
     "Albarracín", "Bermejo", "Cervantes", "Díez", "Escobar", "Fuentes", "Galindo", "Hidalgo",
     "Iniesta", "Jover", "Llamas", "Molina", "Nicolás", "Olmedo", "Prieto", "Quiles", "Rosique",
 ]
-EMPRESAS = [
-    "Soluciones Digitales Guadalentín S.L.",
-    "Nexo Software Lorca",
-    "Cooperativa TecnoSur",
-    "Estudio Web Alameda",
-    "Redes y Sistemas del Sureste",
-    "Agencia Creativa Puerta Nueva",
+# Empresas ficticias en municipios reales de la comarca. Coordenadas aproximadas
+# precalculadas (el seed no depende de la red ni de Nominatim).
+# (nombre, dirección, municipio, lat, lon, ciclos, activa)
+EMPRESAS: list[tuple[str, str, str, float, float, list[str], bool]] = [
+    ("Soluciones Digitales Guadalentín", "Polígono Saprelorca, nave 12", "Lorca", 37.6551, -1.7212, ["DAW", "SMR"], True),
+    ("Nexo Software Lorca", "Avenida Juan Carlos I, 40", "Lorca", 37.6735, -1.6978, ["DAW", "DAM"], True),
+    ("Estudio Web Alameda", "Alameda de Cervantes, 8", "Lorca", 37.6779, -1.6955, ["DAW"], True),
+    ("Gestoría Puerta Nueva", "Calle Corredera, 21", "Lorca", 37.6787, -1.7010, ["Gestión Administrativa"], True),
+    ("Redes y Sistemas del Sureste", "Carretera de Granada, km 3", "Puerto Lumbreras", 37.5642, -1.8101, ["SMR", "ASIR"], True),
+    ("Cooperativa TecnoSur", "Calle Mayor, 15", "Puerto Lumbreras", 37.5629, -1.8077, ["SMR"], False),
+    ("Agencia Creativa Mar de Águilas", "Paseo de Parra, 4", "Águilas", 37.4061, -1.5821, ["DAW", "DAM"], True),
+    ("Informática Costa Cálida", "Calle Rey Carlos III, 30", "Águilas", 37.4090, -1.5795, ["SMR"], False),
+    ("Asesoría Sierra Espuña", "Avenida de Lorca, 12", "Totana", 37.7682, -1.5021, ["Gestión Administrativa"], True),
+    ("Totana Cloud Services", "Polígono El Saladar, parcela 7", "Totana", 37.7604, -1.4917, ["ASIR", "DAW"], True),
+    ("Murcia Apps Lab", "Avenida Juan de Borbón, 50", "Murcia", 38.0018, -1.1205, ["DAM", "DAW"], True),
+    ("Datos Alhama", "Calle Larga, 3", "Alhama de Murcia", 37.8510, -1.4248, ["ASIR"], False),
 ]
 
 FRANJAS = [
@@ -145,6 +154,7 @@ async def limpiar(db: AsyncIOMotorDatabase) -> None:
         "alumnos",
         "retrasos",
         "emplazamientos",
+        "fem_empresas",
     ):
         await db[col].delete_many(SEED)
 
@@ -354,17 +364,43 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
     return n
 
 
+async def sembrar_empresas(db: AsyncIOMotorDatabase) -> list[dict[str, Any]]:
+    docs = [
+        {
+            **SEED,
+            "nombre": nombre,
+            "direccion": direccion,
+            "municipio": municipio,
+            "lat": lat,
+            "lon": lon,
+            "ciclos": ciclos,
+            "activa": activa,
+            "creado_en": now(),
+        }
+        for nombre, direccion, municipio, lat, lon, ciclos, activa in EMPRESAS
+    ]
+    result = await db["fem_empresas"].insert_many(docs)
+    for doc, oid in zip(docs, result.inserted_ids, strict=True):
+        doc["_id"] = oid
+    return docs
+
+
 async def sembrar_fem(db: AsyncIOMotorDatabase, tutores: list[dict[str, Any]]) -> int:
+    empresas = [e for e in await sembrar_empresas(db) if e["activa"]]
     docs = []
     for i in range(15):
         nombre = f"{rng.choice(NOMBRES)} {rng.choice(APELLIDOS)} {rng.choice(APELLIDOS)}"
         estado = rng.choices(["activo", "pendiente", "finalizado"], weights=[7, 2, 2])[0]
         horas = {"activo": rng.randint(40, 460), "pendiente": 0, "finalizado": 500}[estado]
+        empresa = rng.choice(empresas) if estado != "pendiente" else None
+        ciclo = rng.choice(empresa["ciclos"]) if empresa else rng.choice(["DAW", "SMR", "DAM"])
         docs.append(
             {
                 **SEED,
                 "nombre": nombre,
-                "empresa": rng.choice(EMPRESAS) if estado != "pendiente" else None,
+                "empresa": empresa["nombre"] if empresa else None,
+                "empresa_id": str(empresa["_id"]) if empresa else None,
+                "ciclo": ciclo,
                 "estado": estado,
                 "horas_cursadas": horas,
                 "horas_totales": 500,
