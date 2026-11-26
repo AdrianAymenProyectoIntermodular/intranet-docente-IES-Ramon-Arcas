@@ -267,17 +267,29 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
     def responsable_de(tipo: str) -> dict[str, Any] | None:
         return next((u for u in activos if tipo in u.get("competencias", [])), None)
 
+    # (tipo, título, descripción, estado, datos)
     tickets = [
-        ("rmi", "Proyector del aula B2 no enciende", "El proyector no da imagen desde el lunes. Aula B2, ordenador del profesor.", "abierto"),
-        ("rmi", "Ordenadores del Lab. Informática sin red", "Los puestos 7 a 12 no tienen conexión a internet.", "en_proceso"),
-        ("rmi", "Pizarra digital descalibrada", "La pizarra del aula A1 no responde bien al lápiz.", "resuelto"),
-        ("rmi", "Teclado roto en sala de profesores", "Equipo 3 de la sala de profesores: varias teclas no funcionan.", "cerrado"),
-        ("compras", "Kits de robótica para 1º DAW", "4 kits Arduino. Precio total estimado: 180 €. Requiere presupuesto: sí.", "abierto"),
-        ("compras", "Material fungible de laboratorio", "Probetas y guantes de nitrilo. Precio total: 95 €. Requiere presupuesto: no.", "en_proceso"),
-        ("compras", "Licencias de software de diseño", "10 licencias educativas. Precio total: 0 € (licencia educativa).", "resuelto"),
-        ("rrss", "Publicación: Semana de la Ciencia", "Departamento de Física y Química. Talleres abiertos para 2º ESO.", "abierto"),
-        ("rrss", "Publicación: visita a empresa de 2º DAW", "Departamento de Informática. Visita a una empresa de desarrollo web.", "en_proceso"),
-        ("rrss", "Publicación: concurso de relato corto", "Departamento de Lengua Castellana. Fallo del jurado y premiados.", "cerrado"),
+        ("rmi", "Proyector del aula B2 no enciende", "No da imagen desde el lunes.", "abierto",
+         {"aula": "B2", "dispositivos": "Proyector, PC del profesor"}),
+        ("rmi", "Ordenadores del Lab. Informática sin red", "Los puestos 7 a 12 no tienen conexión.", "en_proceso",
+         {"aula": "Lab. Informática", "dispositivos": "Puestos 7 a 12"}),
+        ("rmi", "Pizarra digital descalibrada", "No responde bien al lápiz.", "resuelto",
+         {"aula": "A1", "dispositivos": "Pizarra digital"}),
+        ("rmi", "Teclado roto en sala de profesores", "Varias teclas no funcionan.", "cerrado",
+         {"aula": "Sala de profesores", "dispositivos": "Equipo 3"}),
+        ("compras", "Kits de robótica para 1º DAW", "Para las prácticas del segundo trimestre.", "abierto",
+         {"articulos": "4 kits Arduino Starter", "precio_total": 180.0, "requiere_presupuesto": True}),
+        ("compras", "Material fungible de laboratorio", None, "en_proceso",
+         {"articulos": "Probetas (20)
+Guantes de nitrilo (2 cajas)", "precio_total": 95.0, "requiere_presupuesto": False}),
+        ("compras", "Licencias de software de diseño", "Licencia educativa gratuita.", "resuelto",
+         {"articulos": "10 licencias educativas", "precio_total": 0.0, "requiere_presupuesto": False}),
+        ("rrss", "Publicación: Semana de la Ciencia", "Talleres abiertos para 2º ESO durante toda la semana.", "abierto",
+         {"departamento": "Física y Química"}),
+        ("rrss", "Publicación: visita a empresa de 2º DAW", "Visita a una empresa de desarrollo web de Lorca.", "en_proceso",
+         {"departamento": "Informática"}),
+        ("rrss", "Publicación: concurso de relato corto", "Fallo del jurado y entrega de premios.", "cerrado",
+         {"departamento": "Lengua Castellana"}),
     ]
     comentarios_por_estado = {
         "en_proceso": ["Recibido, lo revisamos esta semana.", "Gracias, quedo a la espera."],
@@ -285,7 +297,7 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
         "cerrado": ["Cerrado tras la verificación."],
     }
     n = 0
-    for i, (tipo, titulo, descripcion, estado) in enumerate(tickets):
+    for i, (tipo, titulo, descripcion, estado, datos) in enumerate(tickets):
         solicitante = activos[i % len(activos)]
         # Igual que en producción: cada solicitud va al responsable de su tipo.
         asignado = responsable_de(tipo)
@@ -294,6 +306,7 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
             "tipo": tipo,
             "titulo": titulo,
             "descripcion": descripcion,
+            "datos": datos,
             "estado": estado,
             "solicitante_id": str(solicitante["_id"]),
             "asignado_id": str(asignado["_id"]) if asignado else None,
