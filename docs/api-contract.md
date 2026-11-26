@@ -26,6 +26,8 @@ Paginación (cuando aplica): `page` (default 1), `limit` (default 10, máx. 50).
 
 Identificadores: `string` (ObjectId de MongoDB en hex). El cliente **nunca** envía el `id` en el alta; lo asigna el servidor.
 
+Nombres del personal: junto a cada referencia a una cuenta (`solicitante_id`, `asignado_id`, `autor_id`, `tutor_id`) la respuesta incluye `*_nombre`, resuelto por el servidor y de solo lectura. Evita que el cliente tenga que consultar `/usuarios/{id}` (reservado a admin o al propio usuario).
+
 ### Excepciones de paginación
 
 Estos listados devuelven un **array** (no el wrapper paginado), porque se consultan por filtro acotado:

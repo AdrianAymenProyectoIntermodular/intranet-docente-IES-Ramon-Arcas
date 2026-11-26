@@ -1834,6 +1834,11 @@ components:
         creado_en:
           type: string
           format: date-time
+        autor_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del autor (resuelto por el servidor)
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0a2"
         titulo: Entrega de memorias DAW
@@ -2038,6 +2043,16 @@ components:
           format: date-time
         datos:
           $ref: '#/components/schemas/TicketDatos'
+        solicitante_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre de quien pide (resuelto por el servidor)
+        asignado_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del responsable asignado (resuelto por el servidor)
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0d4"
         tipo: rmi
@@ -2147,6 +2162,11 @@ components:
         creado_en:
           type: string
           format: date-time
+        autor_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del autor (resuelto por el servidor)
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0e2"
         autor_id: "64f1a2b3c4d5e6f7a8b9c0b3"
@@ -2184,6 +2204,11 @@ components:
         tutor_id:
           type: string
 
+        tutor_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del tutor (resuelto por el servidor)
     FemHorasPatch:
       type: object
       required: [horas_cursadas]
