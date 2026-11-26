@@ -27,7 +27,9 @@ No comparten base de datos, sesión ni autenticación.
 ### Frontend (PWA)
 
 - React + Vite + TypeScript
-- Service worker / manifest (plugin PWA de Vite; arranque mínimo sin PWA completa)
+- `react-router` (rutas reales sin recarga), `lucide-react` (iconografía), fuentes autoalojadas `@fontsource-variable` (Roboto Slab + Figtree)
+- Animaciones solo con CSS (sin librería de animación), respetando `prefers-reduced-motion`
+- Manifest + iconos instalables; service worker pendiente (Fase 4, junto a Web Push)
 
 ### Infraestructura local
 
@@ -76,8 +78,14 @@ POST /api/v1/auth/logout   → invalidación del refresh (Redis) + borra cookie
 
 ```
 pages/ → hooks/ + services/ → API HTTP (Bearer JWT + credentials include)
-components/ → UI reutilizable
+components/ui → sistema de diseño (tokens en styles/tokens.css)
+components/layout → AppShell (sidebar escritorio / barra inferior móvil), RequireRole
+auth/ → AuthProvider (refresh → /auth/me) y pantallas de acceso
+lib/ → permisos (espejo de roles-and-permissions.md), navegación, formato
 ```
+
+- Sin datos simulados: cada vista consume la API real. Los módulos sin API se muestran como "En desarrollo" sin datos.
+- `lib/permissions.ts` solo decide visibilidad; la autorización real es siempre del backend.
 
 Priorizar para el arranque de la PWA:
 
@@ -98,7 +106,7 @@ Alineada a la memoria del proyecto (apartado 5.14) y al estado del repositorio:
 | Fase | Contenido memoria | Estado en este repo |
 |------|-------------------|---------------------|
 | **1 — Cimientos** | Esquema / temporalización; auth básica; núcleo de roles | **Hecho.** OpenAPI + docs, Google OAuth + JWT/Redis, roles, Docker Compose, PWA mínima |
-| **2 — Núcleo funcional** | Anuncios, FEM, RRSS/IA, retrasos, aula, roles completos, onboarding, RMI/compras | **Parcial.** Runtime: anuncios, tickets (RMI/RRSS/compras), FEM (alumnos/horas), dashboard. Contrato: retrasos. Pendiente: emplazamiento aula, onboarding UI, IA RRSS, mapa FEM |
+| **2 — Núcleo funcional** | Anuncios, FEM, RRSS/IA, retrasos, aula, roles completos, onboarding, RMI/compras | **Parcial.** Runtime + UI: anuncios, tickets (RMI/RRSS/compras), FEM (alumnos/horas), dashboard, retrasos (+ selector de alumnado), roles/auditoría, onboarding (guía). Pendiente: emplazamiento aula, IA RRSS, mapa FEM |
 | **3 — Guardias y firma** | Guardias + ausencias/firma; convivencia; comisiones; módulo ticket restante | **Contrato definido** (guardias/ausencias/firma). Runtime: rama `Adrian-guardias-ausencias`. Convivencia / comisiones / reservas / docs: fuera de contrato aún |
 | **4 — Integraciones** | OAuth completo, Calendar, notificaciones push/email, docs técnicas | **Contrato** notificaciones + auditoría. Runtime y PWA instalable / Calendar: pendiente |
 

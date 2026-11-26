@@ -1,0 +1,175 @@
+/** Tipos de la API (alineados con openapi/openapi.yaml). */
+
+export type Role = 'admin' | 'directiva' | 'jefatura' | 'docente' | 'tutor' | 'responsable_ticket'
+export type UsuarioEstado = 'pendiente' | 'activo' | 'inactivo'
+
+export type UsuarioPublic = {
+  id: string
+  name: string
+  email: string
+  departamento: string
+  roles: Role[]
+  estado: UsuarioEstado
+  origen_alta?: 'manual' | 'oauth' | null
+  dni?: string | null
+  telefono?: string | null
+}
+
+export type UsuarioMe = UsuarioPublic & { permisos?: string[] }
+
+export type Paginated<T> = {
+  items: T[]
+  page: number
+  limit: number
+  total: number
+}
+
+export type UsuarioCreatePayload = {
+  name: string
+  email: string
+  departamento: string
+  roles: Role[]
+  estado: UsuarioEstado
+}
+
+export type UsuarioPatchPayload = {
+  name?: string
+  departamento?: string
+  estado?: UsuarioEstado
+}
+
+export type UsuarioMePatchPayload = {
+  name?: string | null
+  dni?: string | null
+  telefono?: string | null
+}
+
+export type BloqueTipo = 'clase' | 'guardia' | 'reduccion'
+
+export type BloqueHorario = {
+  inicio: string
+  fin: string
+  tipo: BloqueTipo | string
+  asignatura?: string | null
+  grupo?: string | null
+  aula?: string | null
+}
+
+export type Horario = {
+  usuario_id: string
+  dias: Record<string, BloqueHorario[]>
+}
+
+export type Anuncio = {
+  id: string
+  titulo: string
+  cuerpo: string
+  departamento: string | null
+  fijado: boolean
+  expira_en: string | null
+  creado_en: string | null
+  autor_id?: string | null
+}
+
+export type AnuncioCreatePayload = {
+  titulo: string
+  cuerpo: string
+  departamento?: string | null
+  expira_en?: string | null
+}
+
+export type TicketTipo = 'rmi' | 'rrss' | 'compras' | 'otro'
+export type TicketEstado = 'abierto' | 'en_proceso' | 'resuelto' | 'cerrado'
+
+export type Ticket = {
+  id: string
+  tipo: TicketTipo
+  estado: TicketEstado
+  titulo: string
+  descripcion: string | null
+  solicitante_id: string
+  asignado_id: string | null
+  creado_en: string | null
+}
+
+export type TicketCreatePayload = {
+  tipo: TicketTipo
+  titulo: string
+  descripcion?: string | null
+}
+
+export type TicketPatchPayload = {
+  estado?: TicketEstado
+  asignado_id?: string | null
+}
+
+export type Comentario = {
+  id: string
+  autor_id: string
+  cuerpo: string
+  creado_en: string
+  ticket_id?: string | null
+}
+
+export type FemAlumno = {
+  id: string
+  nombre: string
+  empresa: string | null
+  estado: string | null
+  horas_cursadas: number
+  horas_totales: number
+  tutor_id: string | null
+}
+
+export type DashboardKpis = {
+  ausencias_hoy: number
+  guardias_pendientes: number
+  tickets_abiertos: number
+  docentes_activos: number
+  alumnos_fem_activos: number
+}
+
+export type RegistroAuditoria = {
+  id: string
+  usuario_id: string
+  usuario_nombre: string | null
+  accion: string
+  recurso_tipo: string
+  recurso_id: string | null
+  fecha: string
+  detalle: Record<string, unknown> | null
+}
+
+export type Alumno = {
+  id: string
+  nombre: string
+  grupo: string
+  curso: string
+}
+
+export type Retraso = {
+  id: string
+  alumno_id: string
+  fecha: string
+  hora: string
+  modulo: string
+  grupo?: string | null
+  curso_escolar: string
+  registrado_por_id: string
+  creado_en?: string | null
+}
+
+export type RetrasoCreatePayload = {
+  alumno_id: string
+  fecha: string
+  hora: string
+  modulo: string
+}
+
+export type DatosPersonales = {
+  usuario: UsuarioPublic
+  exportado_en: string
+  ausencias: unknown[]
+  tickets: unknown[]
+  suscripciones_push: unknown[]
+}
