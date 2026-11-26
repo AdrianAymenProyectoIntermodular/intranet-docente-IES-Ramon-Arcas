@@ -134,7 +134,10 @@ Sin endpoints en OpenAPI todavía (detalle en [api-contract.md](api-contract.md)
 - Guardias: `asignado_id` (ronda) vs `cubre_id` (quien realiza); regla de rondas en OpenAPI / api-contract.
 - Firma PDF: `proveedor` `manuscrita` \| `autofirma` + `firma_base64` (manuscrita = objetivo garantizado).
 - Perfil para PDF: `UsuarioMePatch` con `name`, `dni`, `telefono`.
+- Adjuntos de tickets en GridFS (MongoDB), sin infraestructura adicional; validación por bytes mágicos.
+- Solicitudes asignadas por competencias del usuario (`competencias`), no por roles nuevos.
 
 ## Pendiente de decisión
 
-- Librerías concretas: generación PDF, email, push (VAPID), AutoFirma cliente, módulo de IA para RRSS.
+- Librerías concretas: generación PDF, email, push (VAPID), AutoFirma cliente.
+- Proveedor de IA para el borrador RRSS. **Decidido el diseño**: interfaz `GeneradorBorrador` en `app/services/ia/` y selección por `IA_PROVEEDOR`; mientras tanto se usa el generador `plantilla` (temporal, sin IA, por indicación del profesorado).

@@ -133,6 +133,7 @@ Estados de ausencia: `registrada` → `pendiente_justificante` (si genérica) �
 | GET | `/api/v1/tickets` | Auth | — | Listado (`?tipo=&estado=`) → array |
 | POST | `/api/v1/tickets` | Auth | — | Creación; `201` + `Location` |
 | PATCH | `/api/v1/tickets/{id}` | Auth | `admin` / `responsable_ticket` con competencia en el tipo | Transición de estado y asignación |
+| POST | `/api/v1/tickets/{id}/borrador` | Auth | solicitante, asignado, `admin` | Regenerar borrador de publicación RRSS |
 | POST | `/api/v1/tickets/{id}/adjuntos` | Auth | solicitante, asignado, `admin` | Subir archivo (multipart `archivo`); `201` + `Location` |
 | GET | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | involucrados | Descargar adjunto |
 | DELETE | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | quien lo subió, `admin` | Borrar adjunto (`204`) |
@@ -158,6 +159,13 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 | `compras` | `articulos`, `precio_total` (≥ 0), `requiere_presupuesto` (bool) |
 | `rrss` | `departamento` |
 | `otro` | sin datos |
+
+### Borrador de publicaciones RRSS
+
+- Los tickets `rrss` tienen `borrador` (`estado`: `pendiente` → `listo` | `error`, `texto`, `proveedor`). Se genera en segundo plano al crear y se puede regenerar.
+- El proveedor se elige con `IA_PROVEEDOR` en `backend/.env`. Hoy solo existe `plantilla`: **generador temporal sin IA** (indicación del profesorado) que ordena lo escrito por el docente sin inventar datos. La interfaz lo identifica como plantilla.
+- Conectar un modelo real: nuevo módulo en `app/services/ia/` que cumpla `GeneradorBorrador`, registrarlo en `PROVEEDORES` y configurar `IA_PROVEEDOR`, `IA_API_KEY`, `IA_MODELO`. El contrato no cambia.
+- Nada se publica automáticamente en redes.
 
 ### Adjuntos
 
@@ -260,4 +268,5 @@ Módulos de la memoria del proyecto **sin endpoints** en este OpenAPI (se defini
 - Librerías concretas de PDF, email y Web Push (VAPID).
 - Si el autor puede corregir o borrar un retraso mal registrado, y en qué plazo.
 - Preferencias de canal de notificación y plazo de conservación de notificaciones/auditoría.
+- Proveedor de IA real para el borrador RRSS (la arquitectura y el contrato ya están listos con el generador de plantilla).
 - Fuente canónica de alumnado: **resuelto parcialmente** — la intranet tiene su propia colección `alumnos` (retrasos). FEM sigue usando `fem_alumnos`; **PENDIENTE DE DECISIÓN** si se unifican y de dónde se importa el alumnado (altas hoy solo vía seed de desarrollo).

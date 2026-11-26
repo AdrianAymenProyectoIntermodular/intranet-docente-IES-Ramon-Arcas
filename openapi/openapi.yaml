@@ -1006,6 +1006,37 @@ paths:
               example:
                 detail: "Transicion invalida: abierto -> cerrado"
 
+  /api/v1/tickets/{id}/borrador:
+    post:
+      tags: [Tickets]
+      summary: Regenerar el borrador de una publicación RRSS
+      description: |
+        Vuelve a generar el texto propuesto para redes con el proveedor configurado
+        (`IA_PROVEEDOR`; hoy `plantilla`, temporal y sin IA). Al crear un ticket `rrss`
+        el borrador se genera solo, en segundo plano. Nunca se publica nada.
+        Pueden regenerarlo el solicitante, el responsable asignado o `admin`.
+        Si el proveedor falla, el borrador queda en estado `error` (la petición responde 200).
+      operationId: regenerarBorradorRrss
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Ticket con el borrador actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: El ticket no es de tipo `rrss`
+
   /api/v1/tickets/{id}/adjuntos:
     post:
       tags: [Tickets]
@@ -2147,6 +2178,11 @@ components:
           readOnly: true
           items:
             $ref: '#/components/schemas/AdjuntoMeta'
+        borrador:
+          allOf:
+            - $ref: '#/components/schemas/BorradorRrss'
+          nullable: true
+          description: Solo en tickets `rrss`.
         solicitante_nombre:
           type: string
           nullable: true
@@ -2169,6 +2205,32 @@ components:
         datos:
           aula: "12"
           dispositivos: Proyector
+
+    BorradorRrss:
+      type: object
+      readOnly: true
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [pendiente, listo, error]
+        texto:
+          type: string
+          nullable: true
+        proveedor:
+          type: string
+          nullable: true
+          description: '`plantilla` = generador temporal sin IA'
+        modelo:
+          type: string
+          nullable: true
+        generado_en:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
 
     AdjuntoMeta:
       type: object
