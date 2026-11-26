@@ -11,7 +11,7 @@ Un usuario puede tener **uno o varios** roles.
 | `jefatura` | Asignación y modificación de guardias |
 | `docente` | Uso cotidiano: anuncios, ausencias, tickets, información propia |
 | `tutor` | Alumnado FEM asignado al docente |
-| `responsable_ticket` | Gestión de tickets que tiene asignados |
+| `responsable_ticket` | Gestión de los tickets de los tipos en los que tiene competencia (RMI, compras, RRSS…) |
 
 **No inventar nombres de roles distintos** a los de esta lista.
 
@@ -23,6 +23,7 @@ Algunas comprobaciones son de **propiedad**, no de rol:
 |-------|-------------|
 | Dueño de ausencia | El usuario autenticado es el titular de esa ausencia (`/ausencias/{id}/…`) |
 | Asignado a ticket | El usuario es el responsable asignado del ticket |
+| Competencia en el tipo | El `responsable_ticket` tiene ese tipo en `competencias` (dato del usuario, no rol). Ejemplos de la memoria: responsable de RMI → `rmi`; secretaría → `compras`; administrador de RRSS → `rrss` |
 
 Ejemplo: `GET /ausencias/{id}/pdf` requiere autenticación **y** ser el dueño (o un rol con privilegio explícito si se define después).
 

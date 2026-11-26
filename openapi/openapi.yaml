@@ -953,6 +953,12 @@ paths:
       description: |
         Máquina de estados: `abierto` → `en_proceso` → `resuelto` → `cerrado`.
         Transiciones inválidas → 422.
+
+        Gestiona `admin`, o un `responsable_ticket` con competencia en el tipo
+        del ticket que sea su asignado (o el ticket esté libre); si no → 403.
+        `asignado_id`: un responsable solo puede asignarse a sí mismo; asignar a
+        otra persona es de `admin` (403). El destino debe ser responsable activo
+        con competencia en el tipo → si no, 422.
       operationId: patchTicket
       security:
         - BearerAuth: []
@@ -1698,6 +1704,14 @@ components:
         telefono:
           type: string
           nullable: true
+        competencias:
+          type: array
+          description: |
+            Tipos de solicitud que gestiona. Solo tiene efecto con el rol
+            `responsable_ticket` (competencia, no rol nuevo).
+          items:
+            $ref: '#/components/schemas/TicketTipo'
+          example: [compras, rrss]
 
     UsuarioPaginated:
       type: object
@@ -1757,6 +1771,11 @@ components:
             $ref: '#/components/schemas/Role'
         estado:
           $ref: '#/components/schemas/UsuarioEstado'
+        competencias:
+          type: array
+          description: Sustituye la lista de tipos de solicitud que gestiona (sin duplicados).
+          items:
+            $ref: '#/components/schemas/TicketTipo'
 
     BloqueHorario:
       type: object

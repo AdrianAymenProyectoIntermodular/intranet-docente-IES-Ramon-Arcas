@@ -130,7 +130,7 @@ Estados de ausencia: `registrada` → `pendiente_justificante` (si genérica) �
 |--------|----------|------|-------------------|-------------|
 | GET | `/api/v1/tickets` | Auth | — | Listado (`?tipo=&estado=`) → array |
 | POST | `/api/v1/tickets` | Auth | — | Creación; `201` + `Location` |
-| PATCH | `/api/v1/tickets/{id}` | Auth | `responsable_ticket` / `admin` | Transición de estado |
+| PATCH | `/api/v1/tickets/{id}` | Auth | `admin` / `responsable_ticket` con competencia en el tipo | Transición de estado y asignación |
 | GET | `/api/v1/tickets/{id}/comentarios` | Auth | involucrados | Hilo de comentarios |
 | POST | `/api/v1/tickets/{id}/comentarios` | Auth | involucrados | Nuevo comentario; `201` + `Location` |
 
@@ -142,6 +142,13 @@ abierto → en_proceso → resuelto → cerrado
 
 - Solo se aceptan transiciones válidas.
 - Transición inválida → `422` con `{"detail": "..."}`.
+
+### Asignación por tipo (competencias)
+
+- Cada usuario tiene `competencias`: los tipos de solicitud que gestiona (`rmi`, `compras`, `rrss`, `otro`). Solo cuentan si tiene el rol `responsable_ticket`; las edita `admin` con `PATCH /usuarios/{id}` (auditado).
+- Al crear un ticket se asigna automáticamente al responsable activo con competencia en su tipo y **menos solicitudes abiertas** (empate: orden alfabético). Sin responsables del tipo, queda sin asignar.
+- Gestionan: `admin` siempre; un `responsable_ticket` solo tickets de su competencia que tenga asignados o estén libres.
+- Reasignar a otra persona es de `admin`; el destino debe ser responsable activo con la competencia (si no, `422`).
 
 ## FEM (Formación en Empresas Murcia)
 
