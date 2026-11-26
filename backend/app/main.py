@@ -11,6 +11,7 @@ from app.api import (
     auditoria,
     auth,
     dashboard,
+    emplazamientos,
     fem,
     health,
     retrasos,
@@ -31,6 +32,7 @@ async def lifespan(_app: FastAPI):
         alumno_service,
         anuncio_service,
         auditoria_service,
+        emplazamiento_service,
         fem_service,
         retraso_service,
         ticket_service,
@@ -45,6 +47,7 @@ async def lifespan(_app: FastAPI):
     await auditoria_service.ensure_indexes(db)
     await alumno_service.ensure_indexes(db)
     await retraso_service.ensure_indexes(db)
+    await emplazamiento_service.ensure_indexes(db)
     yield
     await close_redis()
     await close_mongo()
@@ -78,3 +81,4 @@ app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(auditoria.router, prefix="/api/v1")
 app.include_router(alumnos.router, prefix="/api/v1")
 app.include_router(retrasos.router, prefix="/api/v1")
+app.include_router(emplazamientos.router, prefix="/api/v1")
