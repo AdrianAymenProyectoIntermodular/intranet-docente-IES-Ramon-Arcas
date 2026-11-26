@@ -4,7 +4,7 @@ from typing import Annotated
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Response, UploadFile, status
 
 from app.core.database import get_db
 from app.core.deps import CurrentActiveUser, require_roles
@@ -19,7 +19,7 @@ from app.models.ticket import (
     TicketTipo,
 )
 from app.models.usuario import UsuarioPublic
-from app.services import adjunto_service, auditoria_service, ticket_service
+from app.services import adjunto_service, auditoria_service, borrador_service, ticket_service
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -38,12 +38,30 @@ async def create_ticket(
     payload: TicketCreate,
     response: Response,
     current: CurrentActiveUser,
+    tareas: BackgroundTasks,
 ) -> Ticket:
     ticket = await ticket_service.create_ticket(
         get_db(), payload, solicitante_id=current.id
     )
+    if ticket.tipo == TicketTipo.rrss:
+        # Tras responder: el docente no espera a que se genere el texto.
+        tareas.add_task(borrador_service.generar_en_segundo_plano, get_db(), ticket.id)
     response.headers["Location"] = f"/api/v1/tickets/{ticket.id}"
     return ticket
+
+
+@router.post("/{id}/borrador", response_model=Ticket)
+async def regenerar_borrador(id: str, current: CurrentActiveUser) -> Ticket:
+    """Vuelve a generar el borrador de una publicación RRSS (p. ej. tras añadir imágenes)."""
+    db = get_db()
+    ticket = await ticket_service.get_ticket(db, id)
+    if not ticket_service.puede_adjuntar(current, ticket):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo quien pidió la publicación, su responsable o administración pueden regenerar el borrador",
+        )
+    await borrador_service.generar(db, ticket)
+    return await ticket_service.get_ticket(db, id)
 
 
 @router.patch("/{id}", response_model=Ticket)

@@ -114,6 +114,8 @@ async def create_ticket(
         "titulo": payload.titulo,
         "descripcion": payload.descripcion,
         "datos": payload.datos,
+        # Las publicaciones RRSS nacen con el borrador pendiente de generar.
+        "borrador": {"estado": "pendiente"} if payload.tipo == TicketTipo.rrss else None,
         "estado": TicketEstado.abierto.value,
         "solicitante_id": solicitante_id,
         # Se asigna automáticamente al responsable del tipo (si existe).

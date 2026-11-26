@@ -81,6 +81,23 @@ class AdjuntoMeta(BaseModel):
     subido_en: datetime
 
 
+class BorradorEstado(str, Enum):
+    pendiente = "pendiente"
+    listo = "listo"
+    error = "error"
+
+
+class BorradorRrss(BaseModel):
+    """Texto propuesto para redes; lo gestiona el servidor (no lo envía el cliente)."""
+
+    estado: BorradorEstado
+    texto: str | None = None
+    proveedor: str | None = None
+    modelo: str | None = None
+    generado_en: datetime | None = None
+    error: str | None = None
+
+
 class Ticket(BaseModel):
     id: str
     tipo: TicketTipo
@@ -92,6 +109,7 @@ class Ticket(BaseModel):
     creado_en: datetime | None = None
     datos: dict[str, Any] = Field(default_factory=dict)
     adjuntos: list[AdjuntoMeta] = Field(default_factory=list)
+    borrador: BorradorRrss | None = None
     # Nombres resueltos por el servidor (solo lectura).
     solicitante_nombre: str | None = None
     asignado_nombre: str | None = None
@@ -147,6 +165,7 @@ def doc_to_ticket(doc: dict[str, Any]) -> Ticket:
         creado_en=doc.get("creado_en"),
         datos=doc.get("datos") or {},
         adjuntos=[AdjuntoMeta(**a) for a in doc.get("adjuntos") or []],
+        borrador=BorradorRrss(**doc["borrador"]) if doc.get("borrador") else None,
     )
 
 
