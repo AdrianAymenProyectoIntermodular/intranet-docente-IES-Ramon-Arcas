@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { EmptyState, ErrorState, Notice, Skeleton } from '../../components/ui/Feedback'
-import { Textarea } from '../../components/ui/Field'
+import { Select, Textarea } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
 import { useToast } from '../../components/ui/toast-context'
 import { useApi } from '../../hooks/useApi'
@@ -15,12 +15,15 @@ import { formatFechaHora } from '../../lib/format'
 import { ACCION_SIGUIENTE, ESTADO_TICKET, ORDEN_ESTADOS, SIGUIENTE_ESTADO, TIPO_TICKET } from '../../lib/labels'
 import { errorMessage } from '../../services/api'
 import { createComentario, listComentarios, patchTicket } from '../../services/modulos'
-import type { Ticket } from '../../services/types'
+import type { Ticket, UsuarioMe } from '../../services/types'
+import { listUsuarios } from '../../services/usuarios'
 
 /** Mismas reglas que ticket_service (backend): solo para mostrar u ocultar acciones. */
-function puedeGestionar(roles: string[], t: Ticket, userId: string): boolean {
-  if (roles.includes('admin')) return true
-  if (roles.includes('responsable_ticket')) return t.asignado_id === null || t.asignado_id === userId
+function puedeGestionar(user: UsuarioMe, t: Ticket): boolean {
+  if (user.roles.includes('admin')) return true
+  if (user.roles.includes('responsable_ticket') && (user.competencias ?? []).includes(t.tipo)) {
+    return t.asignado_id === null || t.asignado_id === user.id
+  }
   return false
 }
 
@@ -55,7 +58,8 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
   const user = useUser()
   const toast = useToast()
   const dir = useDirectorio()
-  const gestiona = puedeGestionar(user.roles, t, user.id)
+  const gestiona = puedeGestionar(user, t)
+  const esAdmin = user.roles.includes('admin')
   const comenta = puedeComentar(user.roles, t, user.id)
   const siguiente = SIGUIENTE_ESTADO[t.estado]
   const [confirmar, setConfirmar] = useState(false)
@@ -157,6 +161,8 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
         </div>
       )}
 
+      {esAdmin && <Reasignar ticket={t} onUpdated={onUpdated} />}
+
       <Comentarios ticket={t} puedeComentar={comenta} />
 
       <ConfirmDialog
@@ -169,6 +175,63 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
         La solicitud pasará a <strong>{siguiente ? ESTADO_TICKET[siguiente].label : ''}</strong>. Los estados solo
         avanzan: no se puede volver atrás.
       </ConfirmDialog>
+    </div>
+  )
+}
+
+/** Admin: pasar la solicitud a otro responsable con competencia en su tipo. */
+function Reasignar({ ticket, onUpdated }: { ticket: Ticket; onUpdated: (t: Ticket) => void }) {
+  const toast = useToast()
+  const responsables = useApi(
+    () =>
+      listUsuarios({ rol: 'responsable_ticket', estado: 'activo', limit: 50 }).then((r) =>
+        r.items.filter((u) => (u.competencias ?? []).includes(ticket.tipo)),
+      ),
+    [ticket.tipo],
+  )
+  const [destino, setDestino] = useState('')
+  const [busy, setBusy] = useState(false)
+  const opciones = (responsables.data ?? []).filter((u) => u.id !== ticket.asignado_id)
+
+  if (ticket.estado === 'cerrado' || responsables.loading) return null
+  if (opciones.length === 0) {
+    return (
+      <p className="subtle">
+        {(responsables.data ?? []).length === 0
+          ? `No hay responsables de «${TIPO_TICKET[ticket.tipo].label}». Asígnalos en Usuarios y roles.`
+          : 'No hay otros responsables de este tipo para reasignar.'}
+      </p>
+    )
+  }
+
+  const reasignar = async () => {
+    if (!destino) return
+    setBusy(true)
+    try {
+      const updated = await patchTicket(ticket.id, { asignado_id: destino })
+      onUpdated(updated)
+      setDestino('')
+      toast.ok('Solicitud reasignada')
+    } catch (err) {
+      toast.error(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="reasignar">
+      <Select aria-label="Reasignar a" value={destino} onChange={(e) => setDestino(e.target.value)}>
+        <option value="">Reasignar a…</option>
+        {opciones.map((u) => (
+          <option key={u.id} value={u.id}>
+            {u.name}
+          </option>
+        ))}
+      </Select>
+      <Button onClick={() => void reasignar()} disabled={!destino} loading={busy}>
+        Reasignar
+      </Button>
     </div>
   )
 }

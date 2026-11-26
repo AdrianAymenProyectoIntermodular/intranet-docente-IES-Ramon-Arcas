@@ -13,6 +13,8 @@ export type UsuarioPublic = {
   origen_alta?: 'manual' | 'oauth' | null
   dni?: string | null
   telefono?: string | null
+  /** Tipos de solicitud que gestiona (solo con el rol responsable_ticket). */
+  competencias?: TicketTipo[]
 }
 
 export type UsuarioMe = UsuarioPublic & { permisos?: string[] }
@@ -36,6 +38,7 @@ export type UsuarioPatchPayload = {
   name?: string
   departamento?: string
   estado?: UsuarioEstado
+  competencias?: TicketTipo[]
 }
 
 export type UsuarioMePatchPayload = {

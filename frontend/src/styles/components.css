@@ -1033,3 +1033,7 @@ html.modal-open {
     bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + var(--s-3));
   }
 }
+.chip-sol {
+  background: var(--sol-wash);
+  color: var(--sol-ink);
+}

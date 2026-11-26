@@ -1009,3 +1009,12 @@
     padding: var(--s-5);
   }
 }
+
+.reasignar {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+.reasignar .input {
+  flex: 1;
+}

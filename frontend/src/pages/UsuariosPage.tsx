@@ -16,10 +16,11 @@ import { useToast } from '../components/ui/toast-context'
 import { useApi } from '../hooks/useApi'
 import { invalidarDirectorio } from '../hooks/useDirectorio'
 import { departamentosCon } from '../lib/centro'
+import { TIPO_TICKET } from '../lib/labels'
 import { ROL_DESCRIPCION, ROL_LABEL, ROLES } from '../lib/permissions'
 import { errorMessage } from '../services/api'
 import { createUsuario, listUsuarios, patchUsuario, putRoles } from '../services/usuarios'
-import type { Role, UsuarioEstado, UsuarioPublic } from '../services/types'
+import type { Role, TicketTipo, UsuarioEstado, UsuarioPublic } from '../services/types'
 
 type FiltroEstado = 'todos' | UsuarioEstado
 const ESTADOS: FiltroEstado[] = ['todos', 'pendiente', 'activo', 'inactivo']
@@ -113,6 +114,12 @@ export function UsuariosPage() {
               {ROL_LABEL[r] ?? r}
             </span>
           ))}
+          {u.roles.includes('responsable_ticket') &&
+            (u.competencias ?? []).map((c) => (
+              <span key={c} className="chip chip-sol" title="Gestiona este tipo de solicitud">
+                {TIPO_TICKET[c].corto}
+              </span>
+            ))}
         </span>
       ),
     },
@@ -288,7 +295,7 @@ export function UsuariosPage() {
 function RolesSelector({ value, onChange, error }: { value: Role[]; onChange: (r: Role[]) => void; error?: string }) {
   return (
     <fieldset className="fieldset">
-      <legend className="field-label">Roles y competencias</legend>
+      <legend className="field-label">Roles</legend>
       <div className="roles-grid">
         {ROLES.map((r) => (
           <Checkbox
@@ -308,6 +315,33 @@ function RolesSelector({ value, onChange, error }: { value: Role[]; onChange: (r
     </fieldset>
   )
 }
+
+const TIPOS_COMPETENCIA: TicketTipo[] = ['rmi', 'compras', 'rrss', 'otro']
+
+/** Tipos de solicitud que gestiona un responsable (no es un rol: es un dato del usuario). */
+function CompetenciasSelector({ value, onChange }: { value: TicketTipo[]; onChange: (c: TicketTipo[]) => void }) {
+  return (
+    <fieldset className="fieldset">
+      <legend className="field-label">Solicitudes que gestiona</legend>
+      <p className="field-hint">
+        Las nuevas solicitudes de cada tipo se asignan automáticamente al responsable con menos carga.
+      </p>
+      <div className="roles-grid">
+        {TIPOS_COMPETENCIA.map((t) => (
+          <Checkbox
+            key={t}
+            label={TIPO_TICKET[t].label}
+            description={TIPO_TICKET[t].descripcion}
+            checked={value.includes(t)}
+            onChange={(e) => onChange(e.target.checked ? [...value, t] : value.filter((x) => x !== t))}
+          />
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+const mismosElementos = <T,>(a: T[], b: T[]) => a.length === b.length && a.every((x) => b.includes(x))
 
 function EditarUsuarioModal({
   usuario,
@@ -354,6 +388,7 @@ function EditarForm({
   const [name, setName] = useState(usuario.name)
   const [departamento, setDepartamento] = useState(usuario.departamento)
   const [roles, setRoles] = useState<Role[]>(usuario.roles)
+  const [competencias, setCompetencias] = useState<TicketTipo[]>(usuario.competencias ?? [])
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
   const [errorApi, setErrorApi] = useState<string | null>(null)
@@ -373,8 +408,10 @@ function EditarForm({
       if (name.trim() !== usuario.name || departamento !== usuario.departamento) {
         actualizado = await patchUsuario(usuario.id, { name: name.trim(), departamento })
       }
-      const cambiaronRoles = roles.length !== usuario.roles.length || roles.some((r) => !usuario.roles.includes(r))
-      if (cambiaronRoles) actualizado = await putRoles(usuario.id, roles)
+      if (!mismosElementos(roles, usuario.roles)) actualizado = await putRoles(usuario.id, roles)
+      if (!mismosElementos(competencias, usuario.competencias ?? [])) {
+        actualizado = await patchUsuario(usuario.id, { competencias })
+      }
       onSaved(actualizado)
       onClose()
     } catch (err) {
@@ -402,6 +439,7 @@ function EditarForm({
         </Field>
       </div>
       <RolesSelector value={roles} onChange={setRoles} error={errores.roles} />
+      {roles.includes('responsable_ticket') && <CompetenciasSelector value={competencias} onChange={setCompetencias} />}
       {errorApi && (
         <p className="text-error" role="alert">
           {errorApi}
@@ -456,6 +494,7 @@ function CrearForm({ onClose, onCreated }: { onClose: () => void; onCreated: (u:
   const [email, setEmail] = useState('')
   const [departamento, setDepartamento] = useState('')
   const [roles, setRoles] = useState<Role[]>(['docente'])
+  const [competencias, setCompetencias] = useState<TicketTipo[]>([])
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
   const [errorApi, setErrorApi] = useState<string | null>(null)
@@ -472,7 +511,10 @@ function CrearForm({ onClose, onCreated }: { onClose: () => void; onCreated: (u:
     setEnviando(true)
     setErrorApi(null)
     try {
-      const u = await createUsuario({ name: name.trim(), email: email.trim(), departamento, roles, estado: 'activo' })
+      let u = await createUsuario({ name: name.trim(), email: email.trim(), departamento, roles, estado: 'activo' })
+      if (roles.includes('responsable_ticket') && competencias.length) {
+        u = await patchUsuario(u.id, { competencias })
+      }
       onCreated(u)
       onClose()
     } catch (err) {
@@ -503,6 +545,7 @@ function CrearForm({ onClose, onCreated }: { onClose: () => void; onCreated: (u:
         </Select>
       </Field>
       <RolesSelector value={roles} onChange={setRoles} error={errores.roles} />
+      {roles.includes('responsable_ticket') && <CompetenciasSelector value={competencias} onChange={setCompetencias} />}
       {errorApi && (
         <p className="text-error" role="alert">
           {errorApi}
