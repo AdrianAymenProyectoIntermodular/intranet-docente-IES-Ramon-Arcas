@@ -136,7 +136,16 @@ def horario_para(departamento: str) -> dict[str, list[dict[str, Any]]]:
 
 
 async def limpiar(db: AsyncIOMotorDatabase) -> None:
-    for col in ("usuarios", "anuncios", "tickets", "ticket_comentarios", "fem_alumnos", "alumnos", "retrasos"):
+    for col in (
+        "usuarios",
+        "anuncios",
+        "tickets",
+        "ticket_comentarios",
+        "fem_alumnos",
+        "alumnos",
+        "retrasos",
+        "emplazamientos",
+    ):
         await db[col].delete_many(SEED)
 
 
@@ -416,7 +425,59 @@ async def sembrar_alumnos_y_retrasos(
             )
     if retrasos:
         await db["retrasos"].insert_many(retrasos)
-    return len(alumnos), len(retrasos)
+    return alumnos, len(retrasos)
+
+
+def rejilla(distribucion: str, filas: int, columnas: int) -> list[tuple[int, int, str | None]]:
+    """Posiciones de pupitres (fila, columna, equipo) según la plantilla; igual que en la PWA."""
+    puestos: list[tuple[int, int, str | None]] = []
+    for f in range(filas):
+        for c in range(columnas):
+            if distribucion == "parejas" and c % 3 == 2:
+                continue  # pasillo cada dos pupitres
+            if distribucion == "grupos" and (f % 3 == 2 or c % 3 == 2):
+                continue
+            equipo = None
+            if distribucion == "grupos":
+                equipo = f"Equipo {(f // 3) * ((columnas + 1) // 3) + c // 3 + 1}"
+            puestos.append((f, c, equipo))
+    return puestos
+
+
+async def sembrar_emplazamientos(
+    db: AsyncIOMotorDatabase, alumnos: list[dict[str, Any]], docentes: list[dict[str, Any]]
+) -> int:
+    disenos = [
+        ("Parejas", "1ESO-A", "Matemáticas", "parejas", 4, 5),
+        ("Grupos de proyecto", "2DAW", "DWES", "grupos", 5, 5),
+    ]
+    docs = []
+    for nombre, grupo, modulo, distribucion, filas, columnas in disenos:
+        del_grupo = [a for a in alumnos if a["grupo"] == grupo]
+        posiciones = rejilla(distribucion, filas, columnas)
+        puestos = []
+        for i, (f, c, equipo) in enumerate(posiciones):
+            alumno = del_grupo[i] if i < len(del_grupo) else None
+            puestos.append(
+                {"fila": f, "columna": c, "alumno_id": str(alumno["_id"]) if alumno else None, "equipo": equipo}
+            )
+        docs.append(
+            {
+                **SEED,
+                "nombre": nombre,
+                "grupo": grupo,
+                "modulo": modulo,
+                "distribucion": distribucion,
+                "filas": filas,
+                "columnas": columnas,
+                "puestos": puestos,
+                "autor_id": str(docentes[0]["_id"]),
+                "creado_en": now(),
+                "actualizado_en": now(),
+            }
+        )
+    await db["emplazamientos"].insert_many(docs)
+    return len(docs)
 
 
 async def main(admin_email: str | None) -> None:
@@ -442,11 +503,14 @@ async def main(admin_email: str | None) -> None:
         n_anuncios = await sembrar_anuncios(db, usuarios)
         n_tickets = await sembrar_tickets(db, activos)
         n_fem = await sembrar_fem(db, tutores)
-        n_alumnos, n_retrasos = await sembrar_alumnos_y_retrasos(db, docentes)
+        alumnos, n_retrasos = await sembrar_alumnos_y_retrasos(db, docentes)
+        n_alumnos = len(alumnos)
+        n_emplazamientos = await sembrar_emplazamientos(db, alumnos, docentes)
         print(
             "Seed completado en "
             f"'{settings.mongodb_db}': {len(usuarios)} usuarios, {n_anuncios} anuncios, "
-            f"{n_tickets} tickets, {n_fem} alumnos FEM, {n_alumnos} alumnos, {n_retrasos} retrasos."
+            f"{n_tickets} tickets, {n_fem} alumnos FEM, {n_alumnos} alumnos, {n_retrasos} retrasos, "
+            f"{n_emplazamientos} emplazamientos."
         )
     finally:
         client.close()
