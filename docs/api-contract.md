@@ -133,6 +133,9 @@ Estados de ausencia: `registrada` → `pendiente_justificante` (si genérica) �
 | GET | `/api/v1/tickets` | Auth | — | Listado (`?tipo=&estado=`) → array |
 | POST | `/api/v1/tickets` | Auth | — | Creación; `201` + `Location` |
 | PATCH | `/api/v1/tickets/{id}` | Auth | `admin` / `responsable_ticket` con competencia en el tipo | Transición de estado y asignación |
+| POST | `/api/v1/tickets/{id}/adjuntos` | Auth | solicitante, asignado, `admin` | Subir archivo (multipart `archivo`); `201` + `Location` |
+| GET | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | involucrados | Descargar adjunto |
+| DELETE | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | quien lo subió, `admin` | Borrar adjunto (`204`) |
 | GET | `/api/v1/tickets/{id}/comentarios` | Auth | involucrados | Hilo de comentarios |
 | POST | `/api/v1/tickets/{id}/comentarios` | Auth | involucrados | Nuevo comentario; `201` + `Location` |
 
@@ -155,6 +158,13 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 | `compras` | `articulos`, `precio_total` (≥ 0), `requiere_presupuesto` (bool) |
 | `rrss` | `departamento` |
 | `otro` | sin datos |
+
+### Adjuntos
+
+- Almacenados en GridFS (MongoDB); el ticket guarda sus metadatos en `adjuntos`.
+- Máximo **5 MB** por archivo (`413`) y **10** por solicitud (`409`).
+- Se comprueban extensión, MIME declarado y bytes mágicos (`415` si no cuadran): `rrss` y `rmi` → JPG/PNG/WEBP; `compras` → PDF/JPG/PNG; `otro` → PDF/JPG/PNG/WEBP.
+- Auditoría: `tickets.adjunto_create`, `tickets.adjunto_delete`.
 
 ### Asignación por tipo (competencias)
 
@@ -209,7 +219,7 @@ Las notificaciones **no se crean desde la API**: las generan los servicios ante 
 
 Filtros: `usuario_id`, `accion`, `recurso_tipo`, `recurso_id`, `desde`, `hasta` (ISO 8601), `page`, `limit` (default 10). Intervalo inválido (`desde` > `hasta`) → 422.
 
-Acciones runtime: `auth.login_google`, `auth.login_failed`, `auth.logout`, `usuarios.create`, `usuarios.patch`, `usuarios.put_roles`, `retrasos.create`, `retrasos.consulta_historico`.  
+Acciones runtime: `auth.login_google`, `auth.login_failed`, `auth.logout`, `usuarios.create`, `usuarios.patch`, `usuarios.put_roles`, `retrasos.create`, `retrasos.consulta_historico`, `tickets.adjunto_create`, `tickets.adjunto_delete`.  
 En `patch` / `put_roles` el `detalle` incluye `antes` y `despues`. Las mutaciones de usuarios exigen persistir la traza (503 si falla Mongo); login/logout usan best-effort con log.
 
 ## Health

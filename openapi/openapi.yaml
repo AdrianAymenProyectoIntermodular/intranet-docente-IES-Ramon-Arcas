@@ -1006,6 +1006,105 @@ paths:
               example:
                 detail: "Transicion invalida: abierto -> cerrado"
 
+  /api/v1/tickets/{id}/adjuntos:
+    post:
+      tags: [Tickets]
+      summary: Adjuntar un archivo a la solicitud
+      description: |
+        Máximo 5 MB y 10 adjuntos por solicitud. Se valida extensión, MIME y la firma
+        real del archivo (bytes mágicos). Formatos por tipo: `rrss` y `rmi` →
+        JPG/PNG/WEBP; `compras` → PDF/JPG/PNG; `otro` → PDF/JPG/PNG/WEBP.
+        Pueden adjuntar el solicitante, el responsable asignado o `admin`. Auditado.
+      operationId: uploadTicketAdjunto
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo]
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Adjunto guardado
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdjuntoMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Límite de adjuntos alcanzado
+        '413':
+          description: Archivo mayor de 5 MB
+        '415':
+          description: Formato no permitido para este tipo de solicitud
+
+  /api/v1/tickets/{id}/adjuntos/{adjunto_id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+      - name: adjunto_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Tickets]
+      summary: Descargar un adjunto
+      description: Mismo permiso que los comentarios (implicados y roles con privilegio).
+      operationId: getTicketAdjunto
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Contenido del archivo (`X-Content-Type-Options` nosniff)
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tickets]
+      summary: Borrar un adjunto
+      description: Quien lo subió o `admin`. Auditado.
+      operationId: deleteTicketAdjunto
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Adjunto borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/tickets/{id}/comentarios:
     get:
       tags: [Tickets]
@@ -2043,6 +2142,11 @@ components:
           format: date-time
         datos:
           $ref: '#/components/schemas/TicketDatos'
+        adjuntos:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/AdjuntoMeta'
         solicitante_nombre:
           type: string
           nullable: true
@@ -2065,6 +2169,26 @@ components:
         datos:
           aula: "12"
           dispositivos: Proyector
+
+    AdjuntoMeta:
+      type: object
+      required: [id, nombre, tipo_mime, tamano, subido_por_id, subido_en]
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        tipo_mime:
+          type: string
+          example: image/png
+        tamano:
+          type: integer
+          description: Bytes
+        subido_por_id:
+          type: string
+        subido_en:
+          type: string
+          format: date-time
 
     TicketCreate:
       type: object
