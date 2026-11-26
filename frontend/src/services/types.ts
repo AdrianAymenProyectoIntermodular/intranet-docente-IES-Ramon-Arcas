@@ -168,6 +168,17 @@ export type DashboardKpis = {
   alumnos_fem_activos: number
 }
 
+export type ProporcionActivas = { nombre: string; total: number; activas: number; porcentaje: number }
+
+export type DashboardFem = {
+  empresas_total: number
+  empresas_activas: number
+  porcentaje_activas: number
+  por_municipio: ProporcionActivas[]
+  por_ciclo: ProporcionActivas[]
+  horas: { alumnos: number; cursadas: number; previstas: number; porcentaje: number }
+}
+
 export type RegistroAuditoria = {
   id: string
   usuario_id: string

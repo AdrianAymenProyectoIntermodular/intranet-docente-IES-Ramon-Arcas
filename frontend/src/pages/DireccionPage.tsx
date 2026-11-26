@@ -1,14 +1,13 @@
 import { CircleCheck, CircleDashed, CircleDot, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useUser } from '../auth/auth-context'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Button } from '../components/ui/Button'
 import { ErrorState, ProgressBar, Skeleton } from '../components/ui/Feedback'
 import { Panel } from '../components/ui/Panel'
 import { useApi } from '../hooks/useApi'
 import { TIPO_TICKET } from '../lib/labels'
-import { fetchKpis, listFemAlumnos, listTickets } from '../services/modulos'
-import type { Ticket, TicketTipo } from '../services/types'
+import { fetchDashboardFem, fetchKpis, listTickets } from '../services/modulos'
+import type { ProporcionActivas, Ticket, TicketTipo } from '../services/types'
 
 type EstadoKpi = 'disponible' | 'parcial' | 'pendiente'
 
@@ -30,10 +29,10 @@ const INDICADORES: { nombre: string; estado: EstadoKpi; nota: string }[] = [
   { nombre: 'Ausencias del profesorado', estado: 'pendiente', nota: 'Llega con el módulo de ausencias (Fase 3).' },
   {
     nombre: 'Empresas FEM activas por municipio y ciclo',
-    estado: 'pendiente',
-    nota: 'Las empresas aún no tienen municipio ni ciclo en la API.',
+    estado: 'disponible',
+    nota: 'Sobre las empresas colaboradoras registradas.',
   },
-  { nombre: 'Horas FEM cursadas sobre 500', estado: 'parcial', nota: 'Calculado con el alumnado FEM registrado.' },
+  { nombre: 'Horas FEM cursadas sobre 500', estado: 'disponible', nota: 'Con todo el alumnado FEM registrado.' },
   {
     nombre: 'Publicaciones RRSS y porcentaje publicado',
     estado: 'parcial',
@@ -44,25 +43,15 @@ const INDICADORES: { nombre: string; estado: EstadoKpi; nota: string }[] = [
 ]
 
 export function DireccionPage() {
-  const user = useUser()
-  const esAdmin = user.roles.includes('admin')
   const kpis = useApi(fetchKpis)
   const tickets = useApi(() => listTickets())
-  // El listado FEM completo solo lo puede consultar administración.
-  const fem = useApi(() => (esAdmin ? listFemAlumnos() : Promise.resolve(null)), [esAdmin])
+  const fem = useApi(fetchDashboardFem)
 
   const recargar = () => {
     void kpis.reload()
     void tickets.reload()
     void fem.reload()
   }
-
-  const femHoras = fem.data
-    ? {
-        cursadas: fem.data.reduce((s, a) => s + a.horas_cursadas, 0),
-        previstas: fem.data.reduce((s, a) => s + a.horas_totales, 0),
-      }
-    : null
 
   return (
     <>
@@ -101,29 +90,50 @@ export function DireccionPage() {
         <Panel title="Seguimiento" description="Indicadores calculados con datos actuales">
           <div className="stack">
             <RrssResumen tickets={tickets.data ?? []} cargando={tickets.loading} />
-            {esAdmin ? (
-              fem.loading ? (
-                <Skeleton lines={2} />
-              ) : femHoras && femHoras.previstas > 0 ? (
-                <div className="indicador">
-                  <div className="row-between">
-                    <span>Horas FEM cursadas sobre las previstas</span>
-                    <strong className="num">{Math.round((femHoras.cursadas / femHoras.previstas) * 100)}%</strong>
-                  </div>
-                  <ProgressBar value={femHoras.cursadas} max={femHoras.previstas} label="Horas FEM cursadas" />
-                  <p className="subtle num">
-                    {Math.round(femHoras.cursadas).toLocaleString('es-ES')} de {femHoras.previstas.toLocaleString('es-ES')} horas
-                  </p>
+            {fem.loading ? (
+              <Skeleton lines={2} />
+            ) : fem.error ? (
+              <ErrorState message={fem.error} onRetry={() => void fem.reload()} />
+            ) : fem.data && fem.data.horas.previstas > 0 ? (
+              <div className="indicador">
+                <div className="row-between">
+                  <span>Horas FEM cursadas sobre las previstas</span>
+                  <strong className="num">{Math.round(fem.data.horas.porcentaje)}%</strong>
                 </div>
-              ) : (
-                <p className="subtle">No hay alumnado FEM registrado.</p>
-              )
+                <ProgressBar value={fem.data.horas.cursadas} max={fem.data.horas.previstas} label="Horas FEM cursadas" />
+                <p className="subtle num">
+                  {Math.round(fem.data.horas.cursadas).toLocaleString('es-ES')} de{' '}
+                  {fem.data.horas.previstas.toLocaleString('es-ES')} horas ({fem.data.horas.alumnos} alumnos)
+                </p>
+              </div>
             ) : (
-              <p className="subtle">El avance global de FEM lo consulta administración.</p>
+              <p className="subtle">No hay alumnado FEM registrado.</p>
             )}
           </div>
         </Panel>
       </div>
+
+      <Panel
+        title="Empresas FEM activas"
+        description={
+          fem.data
+            ? `${fem.data.empresas_activas} de ${fem.data.empresas_total} empresas registradas (${fem.data.porcentaje_activas}%)`
+            : 'Porcentaje de empresas activas sobre las registradas'
+        }
+      >
+        {fem.loading ? (
+          <Skeleton lines={5} />
+        ) : fem.error ? (
+          <ErrorState message={fem.error} onRetry={() => void fem.reload()} />
+        ) : fem.data && fem.data.empresas_total > 0 ? (
+          <div className="grid-2">
+            <BarrasProporcion titulo="Por municipio" filas={fem.data.por_municipio} />
+            <BarrasProporcion titulo="Por ciclo formativo" filas={fem.data.por_ciclo} />
+          </div>
+        ) : (
+          <p className="subtle">No hay empresas colaboradoras registradas.</p>
+        )}
+      </Panel>
 
       <Panel title="Indicadores de la memoria del proyecto" description="Estado de cada indicador exigido al cuadro de mando">
         <ul className="indicadores">
@@ -153,6 +163,28 @@ function Cifra({ label, valor, nota }: { label: string; valor: number | null | u
       <dt>{label}</dt>
       <dd className="num">{valor === undefined ? <span className="skeleton skeleton-inline" /> : valor === null ? '—' : valor}</dd>
       <p className="subtle">{nota}</p>
+    </div>
+  )
+}
+
+/** Porcentaje de empresas activas por grupo; el valor va rotulado (no depende del color). */
+function BarrasProporcion({ titulo, filas }: { titulo: string; filas: ProporcionActivas[] }) {
+  return (
+    <div className="stack-sm">
+      <h3 className="barras-titulo">{titulo}</h3>
+      <ul className="barras" aria-label={`Empresas activas ${titulo.toLowerCase()}`}>
+        {filas.map((f) => (
+          <li key={f.nombre} className="barra-fila">
+            <span className="barra-label">{f.nombre}</span>
+            <span className="barra-pista" title={`${f.nombre}: ${f.activas} de ${f.total} activas`}>
+              <span className="barra" style={{ width: `${f.porcentaje}%` }} />
+            </span>
+            <span className="barra-valor num">
+              {Math.round(f.porcentaje)}%<span className="subtle"> ({f.activas}/{f.total})</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import type {
   Anuncio,
   AnuncioCreatePayload,
   Comentario,
+  DashboardFem,
   DashboardKpis,
   Emplazamiento,
   EmplazamientoPayload,
@@ -95,6 +96,10 @@ export function patchFemHoras(id: string, horas_cursadas: number): Promise<FemAl
 /* Dashboard */
 export function fetchKpis(): Promise<DashboardKpis> {
   return apiFetch<DashboardKpis>('/api/v1/dashboard/kpis')
+}
+
+export function fetchDashboardFem(): Promise<DashboardFem> {
+  return apiFetch<DashboardFem>('/api/v1/dashboard/fem')
 }
 
 /* Auditoría */

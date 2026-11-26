@@ -1487,3 +1487,9 @@
 .mapa-item-inactiva {
   color: var(--tinta-3);
 }
+
+.barras-titulo {
+  font-family: var(--font-text);
+  font-size: var(--fs-sm);
+  color: var(--tinta-2);
+}
