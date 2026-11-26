@@ -13,6 +13,7 @@ class FemAlumno(BaseModel):
     horas_cursadas: float = 0
     horas_totales: float = 500
     tutor_id: str | None = None
+    tutor_nombre: str | None = None
 
 
 class FemHorasPatch(BaseModel):

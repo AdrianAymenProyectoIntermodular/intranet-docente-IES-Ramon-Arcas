@@ -9,6 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from app.models.usuario import UsuarioPublic
+from app.services.nombres import con_nombre, con_nombres
 from app.models.ticket import (
     TRANSICIONES_VALIDAS,
     Comentario,
@@ -23,6 +24,8 @@ from app.models.ticket import (
 )
 
 COLLECTION = "tickets"
+NOMBRES_TICKET = {"solicitante_id": "solicitante_nombre", "asignado_id": "asignado_nombre"}
+NOMBRES_COMENTARIO = {"autor_id": "autor_nombre"}
 COMENTARIOS = "ticket_comentarios"
 
 
@@ -42,7 +45,7 @@ async def get_ticket(db: AsyncIOMotorDatabase, ticket_id: str) -> Ticket:
     doc = await db[COLLECTION].find_one({"_id": _oid(ticket_id)})
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado")
-    return doc_to_ticket(doc)
+    return await con_nombre(db, doc_to_ticket(doc), NOMBRES_TICKET)
 
 
 async def list_tickets(
@@ -57,7 +60,7 @@ async def list_tickets(
     if estado is not None:
         query["estado"] = estado.value
     cursor = db[COLLECTION].find(query).sort("creado_en", -1)
-    return [doc_to_ticket(doc) async for doc in cursor]
+    return await con_nombres(db, [doc_to_ticket(doc) async for doc in cursor], NOMBRES_TICKET)
 
 
 ESTADOS_ABIERTOS = [TicketEstado.abierto.value, TicketEstado.en_proceso.value]
@@ -119,7 +122,7 @@ async def create_ticket(
     }
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
-    return doc_to_ticket(doc)
+    return await con_nombre(db, doc_to_ticket(doc), NOMBRES_TICKET)
 
 
 async def patch_ticket(
@@ -158,13 +161,13 @@ async def patch_ticket(
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado")
-    return doc_to_ticket(result)
+    return await con_nombre(db, doc_to_ticket(result), NOMBRES_TICKET)
 
 
 async def list_comentarios(db: AsyncIOMotorDatabase, ticket_id: str) -> list[Comentario]:
     await get_ticket(db, ticket_id)
     cursor = db[COMENTARIOS].find({"ticket_id": ticket_id}).sort("creado_en", 1)
-    return [doc_to_comentario(doc) async for doc in cursor]
+    return await con_nombres(db, [doc_to_comentario(doc) async for doc in cursor], NOMBRES_COMENTARIO)
 
 
 async def create_comentario(
@@ -183,7 +186,7 @@ async def create_comentario(
     }
     result = await db[COMENTARIOS].insert_one(doc)
     doc["_id"] = result.inserted_id
-    return doc_to_comentario(doc)
+    return await con_nombre(db, doc_to_comentario(doc), NOMBRES_COMENTARIO)
 
 
 def puede_gestionar_ticket(user: UsuarioPublic, ticket: Ticket) -> bool:

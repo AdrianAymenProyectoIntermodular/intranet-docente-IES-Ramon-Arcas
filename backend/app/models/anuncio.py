@@ -15,6 +15,7 @@ class Anuncio(BaseModel):
     expira_en: datetime | None = None
     creado_en: datetime | None = None
     autor_id: str | None = None
+    autor_nombre: str | None = None
 
 
 class AnuncioCreate(BaseModel):

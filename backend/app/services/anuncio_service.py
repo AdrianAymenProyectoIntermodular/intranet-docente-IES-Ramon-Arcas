@@ -9,8 +9,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from app.models.anuncio import Anuncio, AnuncioCreate, doc_to_anuncio
+from app.services.nombres import con_nombre, con_nombres
 
 COLLECTION = "anuncios"
+NOMBRES = {"autor_id": "autor_nombre"}
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
@@ -48,7 +50,7 @@ async def list_anuncios(
     query: dict[str, Any] = {"$and": [not_expired, dept_filter]}
 
     cursor = db[COLLECTION].find(query).sort([("fijado", -1), ("creado_en", -1)])
-    return [doc_to_anuncio(doc) async for doc in cursor]
+    return await con_nombres(db, [doc_to_anuncio(doc) async for doc in cursor], NOMBRES)
 
 
 async def create_anuncio(
@@ -68,7 +70,7 @@ async def create_anuncio(
     }
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
-    return doc_to_anuncio(doc)
+    return await con_nombre(db, doc_to_anuncio(doc), NOMBRES)
 
 
 async def fijar_anuncio(db: AsyncIOMotorDatabase, anuncio_id: str, fijado: bool) -> Anuncio:
@@ -79,4 +81,4 @@ async def fijar_anuncio(db: AsyncIOMotorDatabase, anuncio_id: str, fijado: bool)
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anuncio no encontrado")
-    return doc_to_anuncio(result)
+    return await con_nombre(db, doc_to_anuncio(result), NOMBRES)

@@ -80,6 +80,9 @@ class Ticket(BaseModel):
     asignado_id: str | None = None
     creado_en: datetime | None = None
     datos: dict[str, Any] = Field(default_factory=dict)
+    # Nombres resueltos por el servidor (solo lectura).
+    solicitante_nombre: str | None = None
+    asignado_nombre: str | None = None
 
 
 class TicketCreate(BaseModel):
@@ -113,6 +116,7 @@ class Comentario(BaseModel):
     cuerpo: str
     creado_en: datetime
     ticket_id: str | None = None
+    autor_nombre: str | None = None
 
 
 class ComentarioCreate(BaseModel):
