@@ -47,6 +47,12 @@ DOCENTES: list[tuple[str, str, str, list[str]]] = [
     ("Irene Ferrer Lozano", "irene.ferrer@demo.intranet", "Física y Química", ["docente"]),
     ("Sergio Alcaraz Vidal", "sergio.alcaraz@demo.intranet", "Matemáticas", ["docente", "responsable_ticket"]),
 ]
+# Competencias de los responsables de solicitudes (memoria: responsable RMI, secretaría, admin RRSS).
+COMPETENCIAS = {
+    "andres.penalver@demo.intranet": ["rmi"],
+    "sergio.alcaraz@demo.intranet": ["compras", "rrss"],
+}
+
 PENDIENTES = [
     ("Nuria Belmonte Ros", "nuria.belmonte@demo.intranet"),
     ("Hugo Carrasco Pina", "hugo.carrasco@demo.intranet"),
@@ -142,6 +148,7 @@ async def sembrar_usuarios(db: AsyncIOMotorDatabase) -> list[dict[str, Any]]:
                 "email": email,
                 "departamento": dep,
                 "roles": roles,
+                "competencias": COMPETENCIAS.get(email, []),
                 "estado": "activo",
                 "origen_alta": "manual",
                 "google_sub": None,
@@ -257,7 +264,9 @@ async def sembrar_anuncios(db: AsyncIOMotorDatabase, autores: list[dict[str, Any
 
 async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any]]) -> int:
     activos = [u for u in usuarios if u["estado"] == "activo"]
-    responsables = [u for u in activos if "responsable_ticket" in u["roles"]]
+    def responsable_de(tipo: str) -> dict[str, Any] | None:
+        return next((u for u in activos if tipo in u.get("competencias", [])), None)
+
     tickets = [
         ("rmi", "Proyector del aula B2 no enciende", "El proyector no da imagen desde el lunes. Aula B2, ordenador del profesor.", "abierto"),
         ("rmi", "Ordenadores del Lab. Informática sin red", "Los puestos 7 a 12 no tienen conexión a internet.", "en_proceso"),
@@ -278,7 +287,8 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
     n = 0
     for i, (tipo, titulo, descripcion, estado) in enumerate(tickets):
         solicitante = activos[i % len(activos)]
-        asignado = responsables[i % len(responsables)] if estado != "abierto" else None
+        # Igual que en producción: cada solicitud va al responsable de su tipo.
+        asignado = responsable_de(tipo)
         doc = {
             **SEED,
             "tipo": tipo,
