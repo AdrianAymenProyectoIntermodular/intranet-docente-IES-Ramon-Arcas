@@ -96,8 +96,18 @@ export type Ticket = {
   creado_en: string | null
   /** Datos propios del tipo (ver TicketDatos*). */
   datos?: TicketDatos
+  adjuntos?: AdjuntoMeta[]
   solicitante_nombre?: string | null
   asignado_nombre?: string | null
+}
+
+export type AdjuntoMeta = {
+  id: string
+  nombre: string
+  tipo_mime: string
+  tamano: number
+  subido_por_id: string
+  subido_en: string
 }
 
 export type TicketDatosRmi = { aula: string; dispositivos: string }

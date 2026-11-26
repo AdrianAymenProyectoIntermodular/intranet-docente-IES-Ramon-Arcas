@@ -84,12 +84,35 @@ function detailToMessage(detail: unknown, fallback: string): string {
 
 const MENSAJES_ESTADO: Record<number, string> = {
   401: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
+  413: 'El archivo es demasiado grande.',
+  415: 'Tipo de archivo no permitido.',
   403: 'No tienes permiso para realizar esta acción.',
   404: 'No se ha encontrado el recurso.',
   503: 'El servidor no está disponible en este momento.',
 }
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const res = await apiRaw(path, options)
+  if (res.status === 204) return undefined as T
+  return (await res.json()) as T
+}
+
+/** Subida multipart de un archivo (el navegador pone el Content-Type con su boundary). */
+export async function apiUpload<T>(path: string, campo: string, archivo: File): Promise<T> {
+  const body = new FormData()
+  body.append(campo, archivo)
+  const res = await apiRaw(path, { method: 'POST', body })
+  return (await res.json()) as T
+}
+
+/** Descarga binaria autenticada (p. ej. imágenes: un <img src> no puede enviar el Bearer). */
+export async function apiBlob(path: string): Promise<Blob> {
+  const res = await apiRaw(path)
+  return res.blob()
+}
+
+/** Petición con Bearer, refresh automático ante 401 y errores de la API como ApiError. */
+async function apiRaw(path: string, options: ApiOptions = {}): Promise<Response> {
   const { skipAuth, ...init } = options
   const headers = new Headers(init.headers)
   if (!skipAuth) {
@@ -129,9 +152,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     }
     throw new ApiError(res.status, message)
   }
-
-  if (res.status === 204) return undefined as T
-  return (await res.json()) as T
+  return res
 }
 
 /** Construye `?a=1&b=2` ignorando valores vacíos. */

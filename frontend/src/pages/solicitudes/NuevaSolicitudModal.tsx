@@ -9,8 +9,10 @@ import { Modal } from '../../components/ui/Modal'
 import { departamentosCon } from '../../lib/centro'
 import { camposDatos, TIPO_TICKET } from '../../lib/labels'
 import { errorMessage } from '../../services/api'
-import { createTicket } from '../../services/modulos'
-import type { Ticket, TicketCreatePayload, TicketDatos, TicketTipo } from '../../services/types'
+import { createTicket, subirAdjunto } from '../../services/modulos'
+import type { AdjuntoMeta, Ticket, TicketCreatePayload, TicketDatos, TicketTipo } from '../../services/types'
+import { SelectorArchivos } from '../../components/Adjuntos'
+import { useToast } from '../../components/ui/toast-context'
 
 const ICONOS: Record<TicketTipo, LucideIcon> = {
   rmi: Monitor,
@@ -85,6 +87,8 @@ export function NuevaSolicitudModal({
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
   const [errorApi, setErrorApi] = useState<string | null>(null)
+  const [archivos, setArchivos] = useState<File[]>([])
+  const toast = useToast()
 
   const set = (k: string) => (e: { target: { value: string } }) => setCampos((c) => ({ ...c, [k]: e.target.value }))
 
@@ -97,7 +101,18 @@ export function NuevaSolicitudModal({
     setEnviando(true)
     setErrorApi(null)
     try {
-      onCreated(await createTicket(construir(tipo, campos, presupuesto)))
+      const ticket = await createTicket(construir(tipo, campos, presupuesto))
+      // Los archivos se suben después; un fallo en uno no pierde la solicitud ya creada.
+      const subidos: AdjuntoMeta[] = []
+      const adjuntar = tipo !== 'compras' || presupuesto ? archivos : []
+      for (const archivo of adjuntar) {
+        try {
+          subidos.push(await subirAdjunto(ticket.id, archivo))
+        } catch (err) {
+          toast.error(`No se pudo subir ${archivo.name}: ${errorMessage(err)}`)
+        }
+      }
+      onCreated({ ...ticket, adjuntos: subidos })
     } catch (err) {
       setErrorApi(errorMessage(err))
     } finally {
@@ -118,7 +133,12 @@ export function NuevaSolicitudModal({
       footer={
         tipo && (
           <>
-            <Button variant="ghost" icon={ChevronLeft} onClick={() => setTipo(null)} className="mr-auto">
+            <Button variant="ghost" icon={ChevronLeft} onClick={() => {
+                setTipo(null)
+                setArchivos([])
+              }}
+              className="mr-auto"
+            >
               Cambiar tipo
             </Button>
             <Button variant="ghost" onClick={onClose}>
@@ -175,6 +195,7 @@ export function NuevaSolicitudModal({
               <Field label="Qué ocurre" required error={errores.descripcion}>
                 <Textarea value={campos.descripcion ?? ''} onChange={set('descripcion')} rows={4} />
               </Field>
+              <SelectorArchivos tipo="rmi" archivos={archivos} onChange={setArchivos} etiqueta="Fotos de la avería (opcional)" />
             </>
           )}
 
@@ -200,10 +221,13 @@ export function NuevaSolicitudModal({
                 </div>
               </div>
               {presupuesto && (
-                <Notice tone="aviso">
-                  Aún no se pueden adjuntar archivos. Indica el proveedor en las observaciones y entrega el
-                  presupuesto en secretaría.
-                </Notice>
+                <SelectorArchivos
+                  tipo="compras"
+                  archivos={archivos}
+                  onChange={setArchivos}
+                  etiqueta="Presupuesto"
+                  ayuda="PDF o foto del presupuesto, hasta 5 MB."
+                />
               )}
               <Field label="Observaciones">
                 <Textarea value={campos.descripcion ?? ''} onChange={set('descripcion')} rows={2} />
@@ -214,8 +238,8 @@ export function NuevaSolicitudModal({
           {tipo === 'rrss' && (
             <>
               <Notice tone="info">
-                Esta solicitud no publica nada en redes. Llega al equipo de RRSS, que redacta y publica a mano.
-                La generación del borrador con IA y la subida de imágenes llegarán cuando la API los admita.
+                Esta solicitud no publica nada en redes. Llega al equipo de RRSS, que descarga las imágenes,
+                redacta el texto y lo publica a mano.
               </Notice>
               <Field label="Título de la actividad" required error={errores.titulo}>
                 <Input value={campos.titulo ?? ''} onChange={set('titulo')} placeholder="Semana de la Ciencia" autoFocus />
@@ -233,6 +257,7 @@ export function NuevaSolicitudModal({
               <Field label="Descripción breve" required hint="Qué se hizo, con quién y cuándo" error={errores.descripcion}>
                 <Textarea value={campos.descripcion ?? ''} onChange={set('descripcion')} rows={4} />
               </Field>
+              <SelectorArchivos tipo="rrss" archivos={archivos} onChange={setArchivos} etiqueta="Imágenes de la actividad" />
             </>
           )}
 

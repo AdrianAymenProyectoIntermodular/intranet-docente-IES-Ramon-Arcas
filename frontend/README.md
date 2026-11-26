@@ -65,6 +65,6 @@ src/
 
 ## Limitaciones conocidas (dependen de la API)
 
-- Las solicitudes de RRSS y compras no admiten aún imágenes ni adjuntos, ni la generación del borrador con IA.
+- El borrador de RRSS con IA aún no está conectado a ningún modelo.
 - El mapa de FEM necesita la ubicación de las empresas, que la API aún no guarda.
 - La PWA tiene manifest e iconos, pero todavía no tiene service worker: llega en la Fase 4, junto con las notificaciones push.

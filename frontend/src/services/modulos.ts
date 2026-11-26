@@ -1,6 +1,7 @@
 /** Servicios de los módulos de negocio (anuncios, tickets, FEM, dashboard, auditoría, retrasos). */
-import { apiFetch, query } from './api'
+import { apiBlob, apiFetch, apiUpload, query } from './api'
 import type {
+  AdjuntoMeta,
   Alumno,
   Anuncio,
   AnuncioCreatePayload,
@@ -56,6 +57,19 @@ export function createComentario(ticketId: string, cuerpo: string): Promise<Come
     method: 'POST',
     body: JSON.stringify({ cuerpo }),
   })
+}
+
+/* Adjuntos de tickets */
+export function subirAdjunto(ticketId: string, archivo: File): Promise<AdjuntoMeta> {
+  return apiUpload<AdjuntoMeta>(`/api/v1/tickets/${ticketId}/adjuntos`, 'archivo', archivo)
+}
+
+export function descargarAdjunto(ticketId: string, adjuntoId: string): Promise<Blob> {
+  return apiBlob(`/api/v1/tickets/${ticketId}/adjuntos/${adjuntoId}`)
+}
+
+export function borrarAdjunto(ticketId: string, adjuntoId: string): Promise<void> {
+  return apiFetch<void>(`/api/v1/tickets/${ticketId}/adjuntos/${adjuntoId}`, { method: 'DELETE' })
 }
 
 /* FEM */

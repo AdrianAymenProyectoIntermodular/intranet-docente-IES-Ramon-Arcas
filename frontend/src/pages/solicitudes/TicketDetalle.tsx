@@ -1,4 +1,4 @@
-import { Check, MessageSquare, Send, UserCheck } from 'lucide-react'
+import { Check, MessageSquare, Paperclip, Send, UserCheck } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useUser } from '../../auth/auth-context'
 import { Avatar } from '../../components/ui/Avatar'
@@ -21,8 +21,11 @@ import {
   TIPO_TICKET,
 } from '../../lib/labels'
 import { errorMessage } from '../../services/api'
-import { createComentario, listComentarios, patchTicket } from '../../services/modulos'
-import type { Ticket, UsuarioMe } from '../../services/types'
+import { GaleriaAdjuntos } from '../../components/Adjuntos'
+import { Spinner } from '../../components/ui/Spinner'
+import { FORMATOS_ADJUNTO, MAX_POR_TICKET, validarArchivo } from '../../lib/adjuntos'
+import { borrarAdjunto, createComentario, listComentarios, patchTicket, subirAdjunto } from '../../services/modulos'
+import type { AdjuntoMeta, Ticket, UsuarioMe } from '../../services/types'
 import { listUsuarios } from '../../services/usuarios'
 
 /** Mismas reglas que ticket_service (backend): solo para mostrar u ocultar acciones. */
@@ -158,10 +161,12 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
 
       {t.descripcion && <div className="detalle-descripcion">{t.descripcion}</div>}
 
+      <SeccionAdjuntos ticket={t} onUpdated={onUpdated} />
+
       {t.tipo === 'rrss' && (
         <Notice tone="info">
-          El equipo de RRSS copia este texto y publica a mano en las redes del centro. El borrador con IA y
-          las imágenes adjuntas llegarán cuando la API los admita.
+          El equipo de RRSS revisa la solicitud, descarga las imágenes y publica a mano en las redes del
+          centro: nada se publica automáticamente.
         </Notice>
       )}
 
@@ -195,6 +200,100 @@ function DetalleContenido({ ticket: t, onUpdated }: { ticket: Ticket; onUpdated:
         avanzan: no se puede volver atrás.
       </ConfirmDialog>
     </div>
+  )
+}
+
+/** Archivos de la solicitud: galería, añadir (implicados) y borrar (quien subió o admin). */
+function SeccionAdjuntos({ ticket, onUpdated }: { ticket: Ticket; onUpdated: (t: Ticket) => void }) {
+  const user = useUser()
+  const toast = useToast()
+  const [subiendo, setSubiendo] = useState(false)
+  const [aBorrar, setABorrar] = useState<AdjuntoMeta | null>(null)
+  const adjuntos = ticket.adjuntos ?? []
+  const esAdmin = user.roles.includes('admin')
+  const puedeAdjuntar = esAdmin || user.id === ticket.solicitante_id || user.id === ticket.asignado_id
+  const formato = FORMATOS_ADJUNTO[ticket.tipo]
+
+  if (adjuntos.length === 0 && !puedeAdjuntar) return null
+
+  const subir = async (lista: FileList | null) => {
+    if (!lista) return
+    setSubiendo(true)
+    let actual = adjuntos
+    for (const archivo of Array.from(lista)) {
+      const error = validarArchivo(ticket.tipo, archivo)
+      if (error) {
+        toast.error(error)
+        continue
+      }
+      try {
+        actual = [...actual, await subirAdjunto(ticket.id, archivo)]
+      } catch (err) {
+        toast.error(`No se pudo subir ${archivo.name}: ${errorMessage(err)}`)
+      }
+    }
+    if (actual.length !== adjuntos.length) {
+      onUpdated({ ...ticket, adjuntos: actual })
+      toast.ok(actual.length - adjuntos.length === 1 ? 'Archivo adjuntado' : 'Archivos adjuntados')
+    }
+    setSubiendo(false)
+  }
+
+  const borrar = async () => {
+    if (!aBorrar) return
+    try {
+      await borrarAdjunto(ticket.id, aBorrar.id)
+      onUpdated({ ...ticket, adjuntos: adjuntos.filter((a) => a.id !== aBorrar.id) })
+      toast.ok('Archivo borrado')
+    } catch (err) {
+      toast.error(errorMessage(err))
+      throw err
+    }
+  }
+
+  return (
+    <section className="adjuntos" aria-label="Archivos adjuntos">
+      <div className="row-between">
+        <h3>Archivos {adjuntos.length > 0 && <span className="subtle num">({adjuntos.length})</span>}</h3>
+        {puedeAdjuntar && adjuntos.length < MAX_POR_TICKET && (
+          <label className="btn btn-secondary btn-sm">
+            {subiendo ? <Spinner size={15} /> : <Paperclip size={15} aria-hidden />}
+            <span>Adjuntar</span>
+            <input
+              type="file"
+              multiple
+              accept={formato.accept}
+              className="sr-only"
+              disabled={subiendo}
+              onChange={(e) => {
+                void subir(e.target.files)
+                e.target.value = ''
+              }}
+            />
+          </label>
+        )}
+      </div>
+      {adjuntos.length === 0 ? (
+        <p className="subtle">Sin archivos. Formatos admitidos: {formato.texto}, hasta 5 MB.</p>
+      ) : (
+        <GaleriaAdjuntos
+          ticketId={ticket.id}
+          adjuntos={adjuntos}
+          puedeBorrar={(a) => esAdmin || a.subido_por_id === user.id}
+          onBorrar={setABorrar}
+        />
+      )}
+      <ConfirmDialog
+        open={aBorrar !== null}
+        onClose={() => setABorrar(null)}
+        title="Borrar archivo"
+        confirmLabel="Borrar"
+        tone="danger"
+        onConfirm={borrar}
+      >
+        Se borrará <strong>{aBorrar?.nombre}</strong> de la solicitud. No se puede deshacer.
+      </ConfirmDialog>
+    </section>
   )
 }
 
