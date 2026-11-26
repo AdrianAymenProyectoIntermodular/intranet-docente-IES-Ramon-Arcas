@@ -9,6 +9,7 @@ import { AnunciosPage } from './pages/AnunciosPage'
 import { AuditoriaPage } from './pages/AuditoriaPage'
 import { BienvenidaPage } from './pages/BienvenidaPage'
 import { DireccionPage } from './pages/DireccionPage'
+import { EmplazamientoPage } from './pages/emplazamiento/EmplazamientoPage'
 import { FemPage } from './pages/FemPage'
 import { HorarioPage } from './pages/HorarioPage'
 import { InicioPage } from './pages/InicioPage'
@@ -43,6 +44,14 @@ export default function App() {
           element={
             <RequireRole roles={rolesDe('retrasos.registrar')}>
               <RetrasosPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="emplazamiento"
+          element={
+            <RequireRole roles={rolesDe('emplazamiento.gestionar')}>
+              <EmplazamientoPage />
             </RequireRole>
           }
         />

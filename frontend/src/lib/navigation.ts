@@ -96,10 +96,8 @@ export const NAVEGACION: GrupoNav[] = [
         label: 'Emplazamiento en el aula',
         path: '/emplazamiento',
         icon: Armchair,
-        disponible: false,
-        descripcion:
-          'Diseños de aula configurables (distribución de pupitres y agrupaciones) asociados a cada grupo y módulo.',
-        fase: 'Fase 2 — Núcleo funcional',
+        roles: rolesDe('emplazamiento.gestionar'),
+        disponible: true,
       },
       {
         id: 'convivencia',

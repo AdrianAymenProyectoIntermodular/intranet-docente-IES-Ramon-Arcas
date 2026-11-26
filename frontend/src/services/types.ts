@@ -210,3 +210,30 @@ export type DatosPersonales = {
   tickets: unknown[]
   suscripciones_push: unknown[]
 }
+
+export type Distribucion = 'filas' | 'parejas' | 'grupos' | 'u' | 'personalizada'
+
+export type Puesto = {
+  fila: number
+  columna: number
+  alumno_id: string | null
+  equipo: string | null
+}
+
+export type EmplazamientoPayload = {
+  nombre: string
+  grupo: string
+  modulo: string
+  distribucion: Distribucion
+  filas: number
+  columnas: number
+  puestos: Puesto[]
+}
+
+export type Emplazamiento = EmplazamientoPayload & {
+  id: string
+  autor_id: string
+  autor_nombre?: string | null
+  creado_en?: string | null
+  actualizado_en?: string | null
+}

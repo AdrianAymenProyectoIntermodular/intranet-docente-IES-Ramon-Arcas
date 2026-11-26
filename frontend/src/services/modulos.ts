@@ -7,6 +7,8 @@ import type {
   AnuncioCreatePayload,
   Comentario,
   DashboardKpis,
+  Emplazamiento,
+  EmplazamientoPayload,
   FemAlumno,
   Paginated,
   RegistroAuditoria,
@@ -120,4 +122,21 @@ export function listRetrasosAlumno(
   params: { curso_escolar?: string; page?: number; limit?: number } = {},
 ): Promise<Paginated<Retraso>> {
   return apiFetch<Paginated<Retraso>>(`/api/v1/alumnos/${alumnoId}/retrasos${query(params)}`)
+}
+
+/* Emplazamiento en el aula */
+export function listEmplazamientos(params: { grupo?: string; modulo?: string }): Promise<Emplazamiento[]> {
+  return apiFetch<Emplazamiento[]>(`/api/v1/emplazamientos${query(params)}`)
+}
+
+export function createEmplazamiento(payload: EmplazamientoPayload): Promise<Emplazamiento> {
+  return apiFetch<Emplazamiento>('/api/v1/emplazamientos', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function updateEmplazamiento(id: string, payload: EmplazamientoPayload): Promise<Emplazamiento> {
+  return apiFetch<Emplazamiento>(`/api/v1/emplazamientos/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+export function deleteEmplazamiento(id: string): Promise<void> {
+  return apiFetch<void>(`/api/v1/emplazamientos/${id}`, { method: 'DELETE' })
 }

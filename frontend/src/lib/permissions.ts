@@ -34,6 +34,7 @@ export type Capacidad =
   | 'retrasos.registrar'
   | 'auditoria.ver'
   | 'guardias.asignar'
+  | 'emplazamiento.gestionar'
 
 const MATRIZ: Record<Capacidad, Role[]> = {
   'usuarios.gestionar': ['admin'],
@@ -45,6 +46,7 @@ const MATRIZ: Record<Capacidad, Role[]> = {
   'retrasos.registrar': ['admin', 'docente'],
   'auditoria.ver': ['admin', 'directiva'],
   'guardias.asignar': ['admin', 'jefatura'],
+  'emplazamiento.gestionar': ['admin', 'docente'],
 }
 
 export function rolesDe(capacidad: Capacidad): Role[] {

@@ -21,6 +21,7 @@ Algunas comprobaciones son de **propiedad**, no de rol:
 
 | Regla | Significado |
 |-------|-------------|
+| Autor de un diseño de aula | Solo quien lo creó (o `admin`) puede modificarlo o borrarlo |
 | Dueño de ausencia | El usuario autenticado es el titular de esa ausencia (`/ausencias/{id}/…`) |
 | Asignado a ticket | El usuario es el responsable asignado del ticket |
 | Competencia en el tipo | El `responsable_ticket` tiene ese tipo en `competencias` (dato del usuario, no rol). Ejemplos de la memoria: responsable de RMI → `rmi`; secretaría → `compras`; administrador de RRSS → `rrss` |
@@ -45,6 +46,7 @@ Ejemplo: `GET /ausencias/{id}/pdf` requiere autenticación **y** ser el dueño (
 | FEM alumnos / horas | sí | — | — | — | sí | — |
 | Dashboard KPIs | sí | sí | — | — | — | — |
 | Registrar / consultar retrasos | sí | — | — | sí | — | — |
+| Diseñar emplazamiento en el aula | sí | — | — | sí | — | — |
 | Bandeja / suscripciones notificaciones | sí* | sí* | sí* | sí* | sí* | sí* |
 | Consultar auditoría | sí | sí | — | — | — | — |
 | `GET /auth/me` | sí | sí | sí | sí | sí | sí |
