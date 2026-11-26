@@ -156,6 +156,14 @@ async def patch_usuario(db: AsyncIOMotorDatabase, user_id: str, payload: Usuario
                     detail="No se puede eliminar el ultimo admin",
                 )
         updates["roles"] = role_values
+    if "competencias" in updates and updates["competencias"] is not None:
+        # Sin duplicados y en orden estable.
+        vistos: list[str] = []
+        for c in updates["competencias"]:
+            v = c.value if hasattr(c, "value") else c
+            if v not in vistos:
+                vistos.append(v)
+        updates["competencias"] = vistos
     if not updates:
         user = await get_by_id(db, user_id)
         if user is None:

@@ -52,10 +52,20 @@ async def patch_ticket(
     ],
 ) -> Ticket:
     ticket = await ticket_service.get_ticket(get_db(), id)
-    if not ticket_service.puede_gestionar_ticket(current.roles, ticket, current.id):
+    if not ticket_service.puede_gestionar_ticket(current, ticket):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sin permiso para gestionar este ticket",
+        )
+    # Un responsable solo puede asignarse a sí mismo; reasignar a otros es de admin.
+    if (
+        payload.asignado_id is not None
+        and payload.asignado_id != current.id
+        and "admin" not in current.roles
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo administración puede asignar la solicitud a otra persona",
         )
     return await ticket_service.patch_ticket(get_db(), id, payload)
 

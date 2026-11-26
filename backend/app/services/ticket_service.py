@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
+from app.models.usuario import UsuarioPublic
 from app.models.ticket import (
     TRANSICIONES_VALIDAS,
     Comentario,
@@ -59,6 +60,46 @@ async def list_tickets(
     return [doc_to_ticket(doc) async for doc in cursor]
 
 
+ESTADOS_ABIERTOS = [TicketEstado.abierto.value, TicketEstado.en_proceso.value]
+
+
+async def responsables_de(db: AsyncIOMotorDatabase, tipo: TicketTipo) -> list[dict[str, Any]]:
+    """Responsables activos con competencia sobre el tipo de solicitud."""
+    cursor = db["usuarios"].find(
+        {
+            "estado": "activo",
+            "roles": "responsable_ticket",
+            "competencias": tipo.value,
+        }
+    ).sort("name", 1)
+    return [doc async for doc in cursor]
+
+
+async def elegir_responsable(db: AsyncIOMotorDatabase, tipo: TicketTipo) -> str | None:
+    """Responsable del tipo con menos solicitudes abiertas (empate: orden alfabético)."""
+    candidatos = await responsables_de(db, tipo)
+    if not candidatos:
+        return None
+    ids = [str(u["_id"]) for u in candidatos]
+    carga: dict[str, int] = dict.fromkeys(ids, 0)
+    pipeline = [
+        {"$match": {"asignado_id": {"$in": ids}, "estado": {"$in": ESTADOS_ABIERTOS}}},
+        {"$group": {"_id": "$asignado_id", "n": {"$sum": 1}}},
+    ]
+    async for row in db[COLLECTION].aggregate(pipeline):
+        carga[row["_id"]] = row["n"]
+    return min(ids, key=lambda i: carga[i])
+
+
+async def validar_asignable(db: AsyncIOMotorDatabase, usuario_id: str, tipo: TicketTipo) -> None:
+    """El destino de una asignación debe ser responsable activo con la competencia del tipo."""
+    if usuario_id not in {str(u["_id"]) for u in await responsables_de(db, tipo)}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El usuario asignado no es responsable activo de este tipo de solicitud",
+        )
+
+
 async def create_ticket(
     db: AsyncIOMotorDatabase,
     payload: TicketCreate,
@@ -71,7 +112,8 @@ async def create_ticket(
         "descripcion": payload.descripcion,
         "estado": TicketEstado.abierto.value,
         "solicitante_id": solicitante_id,
-        "asignado_id": None,
+        # Se asigna automáticamente al responsable del tipo (si existe).
+        "asignado_id": await elegir_responsable(db, payload.tipo),
         "creado_en": datetime.now(UTC),
     }
     result = await db[COLLECTION].insert_one(doc)
@@ -100,7 +142,8 @@ async def patch_ticket(
             )
         updates["estado"] = payload.estado.value
 
-    if payload.asignado_id is not None:
+    if payload.asignado_id is not None and payload.asignado_id != current.asignado_id:
+        await validar_asignable(db, payload.asignado_id, current.tipo)
         updates["asignado_id"] = payload.asignado_id
 
     if not updates:
@@ -142,12 +185,15 @@ async def create_comentario(
     return doc_to_comentario(doc)
 
 
-def puede_gestionar_ticket(user_roles: list[str], ticket: Ticket, user_id: str) -> bool:
-    """Transiciones/asignación: admin siempre; responsable_ticket si es el asignado (o aún libre)."""
-    if "admin" in user_roles:
+def puede_gestionar_ticket(user: UsuarioPublic, ticket: Ticket) -> bool:
+    """
+    Transiciones/asignación: admin siempre; responsable_ticket solo de los tipos
+    en los que tiene competencia, y si es el asignado (o la solicitud está libre).
+    """
+    if "admin" in user.roles:
         return True
-    if "responsable_ticket" in user_roles:
-        return ticket.asignado_id is None or ticket.asignado_id == user_id
+    if "responsable_ticket" in user.roles and ticket.tipo in user.competencias:
+        return ticket.asignado_id is None or ticket.asignado_id == user.id
     return False
 
 
