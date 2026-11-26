@@ -22,6 +22,8 @@ from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 
 from app.core.config import get_settings
+from app.services.ia import EntradaBorrador
+from app.services.ia.plantilla import GeneradorPlantilla
 from app.services.retraso_service import curso_escolar_de
 
 SEED = {"seed": True}
@@ -311,6 +313,22 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
             "asignado_id": str(asignado["_id"]) if asignado else None,
             "creado_en": now() - timedelta(days=len(tickets) - i, hours=rng.randint(0, 8)),
         }
+        if tipo == "rrss":
+            borrador = await GeneradorPlantilla().generar(
+                EntradaBorrador(
+                    titulo=titulo.removeprefix("Publicación:").strip(),
+                    departamento=datos["departamento"],
+                    descripcion=descripcion or "",
+                )
+            )
+            doc["borrador"] = {
+                "estado": "listo",
+                "texto": borrador.texto,
+                "proveedor": borrador.proveedor,
+                "modelo": None,
+                "generado_en": now(),
+                "error": None,
+            }
         result = await db["tickets"].insert_one(doc)
         n += 1
         for j, cuerpo in enumerate(comentarios_por_estado.get(estado, [])):
