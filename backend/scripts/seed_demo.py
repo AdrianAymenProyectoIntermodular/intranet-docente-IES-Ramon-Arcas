@@ -280,8 +280,7 @@ async def sembrar_tickets(db: AsyncIOMotorDatabase, usuarios: list[dict[str, Any
         ("compras", "Kits de robótica para 1º DAW", "Para las prácticas del segundo trimestre.", "abierto",
          {"articulos": "4 kits Arduino Starter", "precio_total": 180.0, "requiere_presupuesto": True}),
         ("compras", "Material fungible de laboratorio", None, "en_proceso",
-         {"articulos": "Probetas (20)
-Guantes de nitrilo (2 cajas)", "precio_total": 95.0, "requiere_presupuesto": False}),
+         {"articulos": "Probetas (20)\nGuantes de nitrilo (2 cajas)", "precio_total": 95.0, "requiere_presupuesto": False}),
         ("compras", "Licencias de software de diseño", "Licencia educativa gratuita.", "resuelto",
          {"articulos": "10 licencias educativas", "precio_total": 0.0, "requiere_presupuesto": False}),
         ("rrss", "Publicación: Semana de la Ciencia", "Talleres abiertos para 2º ESO durante toda la semana.", "abierto",
