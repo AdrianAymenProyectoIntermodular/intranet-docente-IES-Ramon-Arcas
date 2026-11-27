@@ -73,11 +73,22 @@ tests/          # Pytest
 
 ## Tests
 
-Con Mongo y Redis en marcha:
+Con el stack de Docker Compose levantado (`docker compose up -d`):
+
+```bash
+docker compose exec backend pytest -q
+```
+
+O en local, con Mongo y Redis en marcha:
 
 ```bash
 cd backend
 pytest -q
 ```
+
+Los tests vacían colecciones, así que `tests/conftest.py` fuerza siempre la base de datos
+`intranet_docente_test` (configurable con `TEST_MONGODB_DB`, siempre con sufijo `_test`) y el
+índice 1 de Redis, aunque el entorno apunte a los de desarrollo. La CI de GitHub Actions
+(`.github/workflows/ci.yml`) ejecuta esta suite y el lint + build del frontend en cada push y PR.
 
 Contrato: `../openapi/openapi.yaml` y `../docs/api-contract.md`.

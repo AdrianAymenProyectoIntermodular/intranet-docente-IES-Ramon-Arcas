@@ -48,6 +48,9 @@ services:
       - ./backend/app:/app/app
       # Scripts de desarrollo (seed_demo); no se copian a la imagen
       - ./backend/scripts:/app/scripts
+      # Tests: docker compose exec backend pytest (usan siempre la BD *_test, ver tests/conftest.py)
+      - ./backend/tests:/app/tests
+      - ./backend/pytest.ini:/app/pytest.ini
     networks:
       - intranet
     healthcheck:
