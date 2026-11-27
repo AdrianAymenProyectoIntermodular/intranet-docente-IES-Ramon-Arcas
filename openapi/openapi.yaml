@@ -444,6 +444,14 @@ paths:
           schema:
             type: string
           example: Informatica
+        - name: curso
+          in: query
+          required: false
+          description: Solo anuncios de ese curso (además del filtro de ámbito).
+          schema:
+            type: string
+            maxLength: 40
+          example: 2º DAW
       responses:
         '200':
           description: Lista de anuncios
@@ -2237,6 +2245,10 @@ components:
         departamento:
           type: string
           nullable: true
+        curso:
+          type: string
+          nullable: true
+          description: Curso al que va dirigido (p. ej. "2º DAW"); null si no es de un curso concreto.
         fijado:
           type: boolean
           default: false
@@ -2272,6 +2284,10 @@ components:
         departamento:
           type: string
           nullable: true
+        curso:
+          type: string
+          nullable: true
+          maxLength: 40
         expira_en:
           type: string
           format: date-time
@@ -2280,6 +2296,7 @@ components:
         titulo: Entrega de memorias DAW
         cuerpo: Recordad subir la memoria intermodular antes del 30 de octubre.
         departamento: Informatica
+        curso: 2º DAW
         expira_en: "2026-10-30T23:59:59Z"
 
     Guardia:

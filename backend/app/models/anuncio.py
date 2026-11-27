@@ -11,6 +11,7 @@ class Anuncio(BaseModel):
     titulo: str
     cuerpo: str
     departamento: str | None = None
+    curso: str | None = None
     fijado: bool = False
     expira_en: datetime | None = None
     creado_en: datetime | None = None
@@ -22,6 +23,8 @@ class AnuncioCreate(BaseModel):
     titulo: str = Field(min_length=1)
     cuerpo: str = Field(min_length=1)
     departamento: str | None = None
+    # Segmentación por curso (p. ej. "2º DAW"); None = sin curso concreto.
+    curso: str | None = Field(default=None, max_length=40)
     expira_en: datetime | None = None
 
 
@@ -35,6 +38,7 @@ def doc_to_anuncio(doc: dict[str, Any]) -> Anuncio:
         titulo=doc["titulo"],
         cuerpo=doc["cuerpo"],
         departamento=doc.get("departamento"),
+        curso=doc.get("curso") or None,
         fijado=bool(doc.get("fijado", False)),
         expira_en=doc.get("expira_en"),
         creado_en=doc.get("creado_en"),

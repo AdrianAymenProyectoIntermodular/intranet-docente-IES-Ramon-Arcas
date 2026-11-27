@@ -435,3 +435,35 @@ async def test_usuarios_rgpd_me(client: AsyncClient, monkeypatch: pytest.MonkeyP
     assert datos.status_code == 200
     assert datos.json()["usuario"]["email"] == "rgpd@example.com"
     assert "exportado_en" in datos.json()
+
+
+@pytest.mark.asyncio
+async def test_anuncios_por_curso(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Segmentación por curso (memoria 5.2.1): el anuncio guarda el curso y el feed lo filtra."""
+    await get_db()["anuncios"].delete_many({})
+    access = await _activate_as(
+        client,
+        monkeypatch,
+        email="dir-curso@example.com",
+        sub="google-dir-curso",
+        name="Directiva",
+        roles=[Role.directiva],
+    )
+    headers = {"Authorization": f"Bearer {access}"}
+
+    daw = await client.post(
+        "/api/v1/anuncios", headers=headers, json={"titulo": "Salida FEM", "cuerpo": "Lunes", "curso": "2º DAW"}
+    )
+    assert daw.status_code == 201
+    assert daw.json()["curso"] == "2º DAW"
+    general = await client.post("/api/v1/anuncios", headers=headers, json={"titulo": "Claustro", "cuerpo": "Martes"})
+    assert general.json()["curso"] is None
+
+    filtrado = await client.get("/api/v1/anuncios", headers=headers, params={"curso": "2º DAW"})
+    assert [a["id"] for a in filtrado.json()] == [daw.json()["id"]]
+
+    todos = {a["id"] for a in (await client.get("/api/v1/anuncios", headers=headers)).json()}
+    assert {daw.json()["id"], general.json()["id"]} <= todos
+
+    largo = await client.post("/api/v1/anuncios", headers=headers, json={"titulo": "T", "cuerpo": "C", "curso": "x" * 41})
+    assert largo.status_code == 422

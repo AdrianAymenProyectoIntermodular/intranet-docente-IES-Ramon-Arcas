@@ -14,6 +14,18 @@ export const DEPARTAMENTOS = [
   'Orientación',
 ] as const
 
+/** Cursos del centro para segmentar anuncios (texto libre en la API). */
+export const CURSOS = [
+  '1º ESO',
+  '2º ESO',
+  '3º ESO',
+  '4º ESO',
+  '1º Bachillerato',
+  '2º Bachillerato',
+  '1º DAW',
+  '2º DAW',
+] as const
+
 /** Lista sin duplicados que incluye valores extra (p. ej. el departamento del usuario). */
 export function departamentosCon(...extra: (string | null | undefined)[]): string[] {
   const set = new Set<string>(DEPARTAMENTOS)

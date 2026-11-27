@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.core.database import get_db
 from app.core.deps import CurrentActiveUser, require_roles
@@ -17,12 +17,14 @@ router = APIRouter(prefix="/anuncios", tags=["Anuncios"])
 async def list_anuncios(
     current: CurrentActiveUser,
     departamento: str | None = None,
+    curso: Annotated[str | None, Query(max_length=40)] = None,
 ) -> list[Anuncio]:
-    """Feed segmentado por departamento del usuario autenticado."""
+    """Feed segmentado por ámbito (general / departamento del usuario) y, opcionalmente, por curso."""
     return await anuncio_service.list_anuncios(
         get_db(),
         departamento=departamento,
         viewer_departamento=current.departamento,
+        curso=curso,
     )
 
 
@@ -42,7 +44,7 @@ async def create_anuncio(
         usuario_nombre=current.name,
         recurso_tipo="anuncio",
         recurso_id=anuncio.id,
-        detalle={"titulo": anuncio.titulo, "departamento": anuncio.departamento},
+        detalle={"titulo": anuncio.titulo, "departamento": anuncio.departamento, "curso": anuncio.curso},
     )
     response.headers["Location"] = f"/api/v1/anuncios/{anuncio.id}"
     return anuncio

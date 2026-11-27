@@ -250,10 +250,10 @@ async def sembrar_anuncios(db: AsyncIOMotorDatabase, autores: list[dict[str, Any
          None, False, 10, 3),
         ("Reunión de departamento de Informática",
          "Revisión de la programación de FEM y reparto de empresas colaboradoras para 2º DAW.",
-         "Informática", False, 7, 1),
+         "Informática", False, 7, 1, "2º DAW"),
         ("Banco de recursos de Matemáticas",
          "Se ha actualizado la carpeta compartida con fichas de refuerzo para 1º y 2º de ESO.",
-         "Matemáticas", False, None, 4),
+         "Matemáticas", False, None, 4, "1º ESO"),
         ("Semana de la Ciencia",
          "El departamento de Física y Química organiza talleres abiertos del 1 al 5 de diciembre. "
          "Podéis apuntar a vuestros grupos en jefatura.",
@@ -266,13 +266,15 @@ async def sembrar_anuncios(db: AsyncIOMotorDatabase, autores: list[dict[str, Any
          None, False, -1, 9),
     ]
     docs = []
-    for titulo, cuerpo, dep, fijado, dias_expira, hace_dias in anuncios:
+    for titulo, cuerpo, dep, fijado, dias_expira, hace_dias, *resto in anuncios:
+        curso = resto[0] if resto else None
         docs.append(
             {
                 **SEED,
                 "titulo": titulo,
                 "cuerpo": cuerpo,
                 "departamento": dep,
+                "curso": curso,
                 "fijado": fijado,
                 "expira_en": (now() + timedelta(days=dias_expira)) if dias_expira is not None else None,
                 "autor_id": str(directiva["_id"]),

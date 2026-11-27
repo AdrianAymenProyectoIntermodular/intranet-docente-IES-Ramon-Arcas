@@ -1,4 +1,4 @@
-import { Building2, Globe, Megaphone, Pin, PinOff, Plus, Search } from 'lucide-react'
+import { Building2, Globe, GraduationCap, Megaphone, Pin, PinOff, Plus, Search } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useLocation } from 'react-router'
 import { useUser } from '../auth/auth-context'
@@ -11,7 +11,7 @@ import { Modal } from '../components/ui/Modal'
 import { Tabs } from '../components/ui/Tabs'
 import { useToast } from '../components/ui/toast-context'
 import { useApi } from '../hooks/useApi'
-import { departamentosCon } from '../lib/centro'
+import { CURSOS, departamentosCon } from '../lib/centro'
 import { formatFecha, formatRelativa, isoLocal, parseApiDate } from '../lib/format'
 import { puede } from '../lib/permissions'
 import { errorMessage } from '../services/api'
@@ -27,21 +27,28 @@ export function AnunciosPage() {
   const { data, error, loading, reload, setData } = useApi(() => listAnuncios())
   const [ambito, setAmbito] = useState<Ambito>('todos')
   const [texto, setTexto] = useState('')
+  const [curso, setCurso] = useState('')
   const [crear, setCrear] = useState(false)
   const puedePublicar = puede(user.roles, 'anuncios.publicar')
   const puedeFijar = puede(user.roles, 'anuncios.fijar')
 
   const anuncios = useMemo(() => data ?? [], [data])
+  // Cursos con algún anuncio vigente: solo se ofrecen filtros que devuelven resultados.
+  const cursosConAnuncios = useMemo(
+    () => [...new Set(anuncios.map((a) => a.curso).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, 'es')),
+    [anuncios],
+  )
   const [ahora] = useState(() => Date.now())
   const filtrados = useMemo(() => {
     const q = texto.trim().toLowerCase()
     return anuncios.filter((a) => {
       if (ambito === 'general' && a.departamento) return false
       if (ambito === 'departamento' && !a.departamento) return false
+      if (curso && a.curso !== curso) return false
       if (!q) return true
-      return `${a.titulo} ${a.cuerpo} ${a.departamento ?? ''}`.toLowerCase().includes(q)
+      return `${a.titulo} ${a.cuerpo} ${a.departamento ?? ''} ${a.curso ?? ''}`.toLowerCase().includes(q)
     })
-  }, [anuncios, ambito, texto])
+  }, [anuncios, ambito, curso, texto])
 
   const destacados = filtrados.filter((a) => a.fijado)
   const resto = filtrados.filter((a) => !a.fijado)
@@ -90,6 +97,16 @@ export function AnunciosPage() {
             { value: 'departamento', label: 'Departamento', count: contar('departamento') },
           ]}
         />
+        {cursosConAnuncios.length > 0 && (
+          <Select aria-label="Filtrar por curso" className="select-inline" value={curso} onChange={(e) => setCurso(e.target.value)}>
+            <option value="">Todos los cursos</option>
+            {cursosConAnuncios.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        )}
         <label className="search">
           <Search size={16} aria-hidden />
           <span className="sr-only">Buscar en el tablón</span>
@@ -116,6 +133,7 @@ export function AnunciosPage() {
                 onClick={() => {
                   setTexto('')
                   setAmbito('todos')
+                  setCurso('')
                 }}
               >
                 Quitar filtros
@@ -207,6 +225,11 @@ function AnuncioCard({
           {a.departamento ? <Building2 size={15} aria-hidden /> : <Globe size={15} aria-hidden />}
           {a.departamento ?? 'General'}
         </span>
+        {a.curso && (
+          <Badge tone="info">
+            <GraduationCap size={12} aria-hidden /> {a.curso}
+          </Badge>
+        )}
         {a.fijado && (
           <Badge tone="sol">
             <Pin size={12} aria-hidden /> Destacado
@@ -246,6 +269,7 @@ function CrearAnuncioModal({
   const [titulo, setTitulo] = useState('')
   const [cuerpo, setCuerpo] = useState('')
   const [departamento, setDepartamento] = useState('')
+  const [cursoAnuncio, setCursoAnuncio] = useState('')
   const [caducidad, setCaducidad] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
@@ -255,6 +279,7 @@ function CrearAnuncioModal({
     setTitulo('')
     setCuerpo('')
     setDepartamento('')
+    setCursoAnuncio('')
     setCaducidad('')
     setErrores({})
     setErrorApi(null)
@@ -277,6 +302,7 @@ function CrearAnuncioModal({
         titulo: titulo.trim(),
         cuerpo: cuerpo.trim(),
         departamento: departamento || null,
+        curso: cursoAnuncio || null,
         // Visible hasta el final del día elegido (hora local).
         expira_en: caducidad ? new Date(`${caducidad}T23:59:59`).toISOString() : null,
       })
@@ -325,6 +351,18 @@ function CrearAnuncioModal({
               ))}
             </Select>
           </Field>
+          <Field label="Curso" hint="Opcional. Para avisos de un curso concreto">
+            <Select value={cursoAnuncio} onChange={(e) => setCursoAnuncio(e.target.value)}>
+              <option value="">Todos los cursos</option>
+              {CURSOS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="form-row">
           <Field label="Caduca el" hint="Opcional. Después deja de mostrarse." error={errores.caducidad}>
             <Input type="date" min={isoLocal()} value={caducidad} onChange={(e) => setCaducidad(e.target.value)} />
           </Field>

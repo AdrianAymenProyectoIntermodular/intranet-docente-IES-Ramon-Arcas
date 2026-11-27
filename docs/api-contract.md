@@ -75,7 +75,7 @@ Usuarios, retrasos, notificaciones y auditoría sí usan `{ items, page, limit, 
 
 | Método | Endpoint | Auth | Roles | Descripción |
 |--------|----------|------|-------|-------------|
-| GET | `/api/v1/anuncios` | Auth | — | Feed segmentado por departamento (array) |
+| GET | `/api/v1/anuncios` | Auth | — | Feed segmentado por ámbito (general / departamento) y, con `?curso=`, por curso (array) |
 | POST | `/api/v1/anuncios` | Auth | `admin`, `directiva` | Publicar; `201` + `Location` |
 | PATCH | `/api/v1/anuncios/{id}/fijar` | Auth | `admin` | Fijar / desfijar |
 

@@ -68,6 +68,7 @@ export type Anuncio = {
   titulo: string
   cuerpo: string
   departamento: string | null
+  curso?: string | null
   fijado: boolean
   expira_en: string | null
   creado_en: string | null
@@ -79,6 +80,7 @@ export type AnuncioCreatePayload = {
   titulo: string
   cuerpo: string
   departamento?: string | null
+  curso?: string | null
   expira_en?: string | null
 }
 
