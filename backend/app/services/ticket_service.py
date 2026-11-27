@@ -32,6 +32,7 @@ COMENTARIOS = "ticket_comentarios"
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db[COLLECTION].create_index([("estado", 1), ("tipo", 1)])
     await db[COLLECTION].create_index("solicitante_id")
+    await db[COLLECTION].create_index("asignado_id")
     await db[COMENTARIOS].create_index("ticket_id")
 
 
@@ -48,13 +49,32 @@ async def get_ticket(db: AsyncIOMotorDatabase, ticket_id: str) -> Ticket:
     return await con_nombre(db, doc_to_ticket(doc), NOMBRES_TICKET)
 
 
+# Roles que ven todas las solicitudes (gestión global y cuadro de mando).
+ROLES_VEN_TODO = {"admin", "directiva"}
+
+
+def filtro_visibilidad(user: UsuarioPublic) -> dict[str, Any]:
+    """
+    Condición Mongo con las solicitudes que el usuario puede ver: las que pidió, las que
+    tiene asignadas y, si es responsable_ticket, las de los tipos de su competencia.
+    Admin y directiva lo ven todo (filtro vacío). Espejo de `puede_ver_ticket`.
+    """
+    if ROLES_VEN_TODO & set(user.roles):
+        return {}
+    condiciones: list[dict[str, Any]] = [{"solicitante_id": user.id}, {"asignado_id": user.id}]
+    if "responsable_ticket" in user.roles and user.competencias:
+        condiciones.append({"tipo": {"$in": [c.value for c in user.competencias]}})
+    return {"$or": condiciones}
+
+
 async def list_tickets(
     db: AsyncIOMotorDatabase,
     *,
+    viewer: UsuarioPublic,
     tipo: TicketTipo | None,
     estado: TicketEstado | None,
 ) -> list[Ticket]:
-    query: dict[str, Any] = {}
+    query: dict[str, Any] = filtro_visibilidad(viewer)
     if tipo is not None:
         query["tipo"] = tipo.value
     if estado is not None:
@@ -208,8 +228,19 @@ def puede_adjuntar(user: UsuarioPublic, ticket: Ticket) -> bool:
     return "admin" in user.roles or user.id in (ticket.solicitante_id, ticket.asignado_id)
 
 
-def puede_comentar(user_roles: list[str], ticket: Ticket, user_id: str) -> bool:
-    """Comentar: admin/responsable_ticket, o dueño (solicitante) / asignado."""
-    if "admin" in user_roles or "responsable_ticket" in user_roles:
+def _es_responsable_del_tipo(user: UsuarioPublic, ticket: Ticket) -> bool:
+    return "responsable_ticket" in user.roles and ticket.tipo in user.competencias
+
+
+def puede_ver_ticket(user: UsuarioPublic, ticket: Ticket) -> bool:
+    """Leer la solicitud, sus comentarios y adjuntos. Espejo de `filtro_visibilidad`."""
+    if ROLES_VEN_TODO & set(user.roles):
         return True
-    return ticket.solicitante_id == user_id or ticket.asignado_id == user_id
+    return user.id in (ticket.solicitante_id, ticket.asignado_id) or _es_responsable_del_tipo(user, ticket)
+
+
+def puede_comentar(user: UsuarioPublic, ticket: Ticket) -> bool:
+    """Comentar: admin, solicitante, asignado o responsable con competencia en el tipo."""
+    if "admin" in user.roles:
+        return True
+    return user.id in (ticket.solicitante_id, ticket.asignado_id) or _es_responsable_del_tipo(user, ticket)

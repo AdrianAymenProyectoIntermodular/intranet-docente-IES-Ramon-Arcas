@@ -155,3 +155,52 @@ async def test_competencias_en_usuario(client: AsyncClient, monkeypatch: pytest.
 
     traza = await get_db()["auditoria"].find_one({"accion": "usuarios.patch", "recurso_id": uid})
     assert traza["detalle"]["despues"]["competencias"] == ["rrss", "rmi"]
+
+
+async def _titulos(client: AsyncClient, headers: dict[str, str], query: str = "") -> set[str]:
+    res = await client.get(f"/api/v1/tickets{query}", headers=headers)
+    assert res.status_code == 200
+    return {t["titulo"] for t in res.json()}
+
+
+@pytest.mark.asyncio
+async def test_listado_solo_muestra_lo_visible(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cada usuario ve sus solicitudes, las asignadas y las de su competencia; admin y directiva, todas."""
+    rmi, _ = await _activate_as(client, monkeypatch, email="rmi@x.com", roles=[Role.responsable_ticket], competencias=["rmi"])
+    sec, _ = await _activate_as(client, monkeypatch, email="sec@x.com", roles=[Role.responsable_ticket], competencias=["compras"])
+    admin, _ = await _activate_as(client, monkeypatch, email="admin@x.com", roles=[Role.admin])
+    direccion, _ = await _activate_as(client, monkeypatch, email="dir@x.com", roles=[Role.directiva])
+    ana, _ = await _activate_as(client, monkeypatch, email="ana@x.com", roles=[Role.docente])
+    beto, _ = await _activate_as(client, monkeypatch, email="beto@x.com", roles=[Role.docente])
+
+    await _crear(client, ana, "rmi", "rmi-ana")
+    await _crear(client, ana, "compras", "compra-ana")
+    await _crear(client, beto, "rmi", "rmi-beto")
+    await _crear(client, beto, "otro", "otro-beto")
+    await _crear(client, rmi, "compras", "compra-rmi")
+
+    todos = {"rmi-ana", "compra-ana", "rmi-beto", "otro-beto", "compra-rmi"}
+    assert await _titulos(client, admin) == todos
+    assert await _titulos(client, direccion) == todos
+    assert await _titulos(client, ana) == {"rmi-ana", "compra-ana"}
+    assert await _titulos(client, beto) == {"rmi-beto", "otro-beto"}
+    # Responsable: las de su competencia + las que ha pedido él mismo.
+    assert await _titulos(client, rmi) == {"rmi-ana", "rmi-beto", "compra-rmi"}
+    assert await _titulos(client, sec) == {"compra-ana", "compra-rmi"}
+    # Los filtros se combinan con la visibilidad.
+    assert await _titulos(client, ana, "?tipo=rmi") == {"rmi-ana"}
+    assert await _titulos(client, rmi, "?tipo=compras") == {"compra-rmi"}
+
+
+@pytest.mark.asyncio
+async def test_responsable_sin_competencia_no_lee_comentarios_ni_adjuntos(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rmi, _ = await _activate_as(client, monkeypatch, email="rmi@x.com", roles=[Role.responsable_ticket], competencias=["rmi"])
+    otro_doc, _ = await _activate_as(client, monkeypatch, email="otro@x.com", roles=[Role.docente])
+    doc, _ = await _activate_as(client, monkeypatch, email="doc@x.com", roles=[Role.docente])
+    compra = await _crear(client, doc, "compras")
+
+    assert (await client.get(f"/api/v1/tickets/{compra['id']}/comentarios", headers=rmi)).status_code == 403
+    assert (await client.get(f"/api/v1/tickets/{compra['id']}/comentarios", headers=otro_doc)).status_code == 403
+    assert (await client.get(f"/api/v1/tickets/{compra['id']}/comentarios", headers=doc)).status_code == 200

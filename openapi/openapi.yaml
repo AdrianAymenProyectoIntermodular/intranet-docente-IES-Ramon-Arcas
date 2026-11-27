@@ -860,6 +860,11 @@ paths:
       description: |
         Listado filtrado por tipo/estado (no paginado). Excepción a la norma
         `{items,page,limit,total}`: cola operativa acotada por filtros.
+
+        Solo devuelve las solicitudes visibles para el usuario: `admin` y
+        `directiva` ven todas; el resto, las que ha pedido o tiene asignadas,
+        y un `responsable_ticket`, además, todas las de los tipos de su
+        competencia.
       operationId: listTickets
       security:
         - BearerAuth: []

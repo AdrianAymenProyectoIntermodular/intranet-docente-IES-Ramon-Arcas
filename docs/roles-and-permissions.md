@@ -40,9 +40,10 @@ Ejemplo: `GET /ausencias/{id}/pdf` requiere autenticación **y** ser el dueño (
 | Asignar / modificar guardias | sí | — | sí | — | — | — |
 | Registrar ausencias propias | sí | sí | sí | sí | sí | sí |
 | Ver detalle / justificante / PDF / firma (propias) | sí* | sí* | sí* | sí* | sí* | sí* |
-| Crear / ver tickets | sí | sí | sí | sí | sí | sí |
+| Crear tickets | sí | sí | sí | sí | sí | sí |
+| Ver tickets | todos | todos | propios‡ | propios‡ | propios‡ | propios‡ + su competencia |
 | Transicionar estado de ticket | sí | — | — | — | — | sí (asignados) |
-| Comentarios en ticket | sí | sí† | sí† | sí† | sí† | sí |
+| Comentarios en ticket | sí | sí† | sí† | sí† | sí† | sí† (+ su competencia) |
 | FEM alumnos / horas | sí | — | — | — | sí | — |
 | Dashboard KPIs | sí | sí | — | — | — | — |
 | Registrar / consultar retrasos | sí | — | — | sí | — | — |
@@ -51,7 +52,9 @@ Ejemplo: `GET /ausencias/{id}/pdf` requiere autenticación **y** ser el dueño (
 | Consultar auditoría | sí | sí | — | — | — | — |
 | `GET /auth/me` | sí | sí | sí | sí | sí | sí |
 
-† Involucrados: solicitante, asignado o roles con privilegio (`admin`, `responsable_ticket`).
+† Involucrados: solicitante o asignado. `directiva` puede leer todos los hilos; para escribir debe ser involucrada.
+
+‡ Propios: los que ha pedido o tiene asignados.
 
 \* Sobre recursos de los que es dueño, salvo que un rol superior tenga permiso administrativo explícito (por definir al implementar).
 

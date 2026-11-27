@@ -26,11 +26,12 @@ router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
 @router.get("", response_model=list[Ticket])
 async def list_tickets(
-    _current: CurrentActiveUser,
+    current: CurrentActiveUser,
     tipo: TicketTipo | None = None,
     estado: TicketEstado | None = None,
 ) -> list[Ticket]:
-    return await ticket_service.list_tickets(get_db(), tipo=tipo, estado=estado)
+    """Solo las solicitudes visibles para el usuario (ver `ticket_service.filtro_visibilidad`)."""
+    return await ticket_service.list_tickets(get_db(), viewer=current, tipo=tipo, estado=estado)
 
 
 @router.post("", response_model=Ticket, status_code=status.HTTP_201_CREATED)
@@ -94,7 +95,7 @@ async def patch_ticket(
 @router.get("/{id}/comentarios", response_model=list[Comentario])
 async def list_comentarios(id: str, current: CurrentActiveUser) -> list[Comentario]:
     ticket = await ticket_service.get_ticket(get_db(), id)
-    if not ticket_service.puede_comentar(current.roles, ticket, current.id):
+    if not ticket_service.puede_ver_ticket(current, ticket):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sin permiso para ver comentarios de este ticket",
@@ -114,7 +115,7 @@ async def create_comentario(
     current: CurrentActiveUser,
 ) -> Comentario:
     ticket = await ticket_service.get_ticket(get_db(), id)
-    if not ticket_service.puede_comentar(current.roles, ticket, current.id):
+    if not ticket_service.puede_comentar(current, ticket):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sin permiso para comentar este ticket",
@@ -163,7 +164,7 @@ async def subir_adjunto(
 async def descargar_adjunto(id: str, adjunto_id: str, current: CurrentActiveUser) -> Response:
     db = get_db()
     ticket = await ticket_service.get_ticket(db, id)
-    if not ticket_service.puede_comentar(current.roles, ticket, current.id):
+    if not ticket_service.puede_ver_ticket(current, ticket):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sin permiso para ver los adjuntos de esta solicitud",
