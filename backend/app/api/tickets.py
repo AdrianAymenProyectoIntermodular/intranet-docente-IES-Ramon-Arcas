@@ -41,8 +41,16 @@ async def create_ticket(
     current: CurrentActiveUser,
     tareas: BackgroundTasks,
 ) -> Ticket:
-    ticket = await ticket_service.create_ticket(
-        get_db(), payload, solicitante_id=current.id
+    db = get_db()
+    ticket = await ticket_service.create_ticket(db, payload, solicitante_id=current.id)
+    await auditoria_service.record_required(
+        db,
+        accion="tickets.create",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="ticket",
+        recurso_id=ticket.id,
+        detalle={"tipo": ticket.tipo.value, "titulo": ticket.titulo, "asignado_id": ticket.asignado_id},
     )
     if ticket.tipo == TicketTipo.rrss:
         # Tras responder: el docente no espera a que se genere el texto.
@@ -62,7 +70,17 @@ async def regenerar_borrador(id: str, current: CurrentActiveUser) -> Ticket:
             detail="Solo quien pidió la publicación, su responsable o administración pueden regenerar el borrador",
         )
     await borrador_service.generar(db, ticket)
-    return await ticket_service.get_ticket(db, id)
+    actualizado = await ticket_service.get_ticket(db, id)
+    await auditoria_service.record_required(
+        db,
+        accion="tickets.borrador_regenerar",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="ticket",
+        recurso_id=id,
+        detalle={"estado": actualizado.borrador.estado.value if actualizado.borrador else None},
+    )
+    return actualizado
 
 
 @router.patch("/{id}", response_model=Ticket)
@@ -89,7 +107,21 @@ async def patch_ticket(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo administración puede asignar la solicitud a otra persona",
         )
-    return await ticket_service.patch_ticket(get_db(), id, payload)
+    db = get_db()
+    actualizado = await ticket_service.patch_ticket(db, id, payload)
+    await auditoria_service.record_required(
+        db,
+        accion="tickets.patch",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="ticket",
+        recurso_id=id,
+        detalle={
+            "antes": {"estado": ticket.estado.value, "asignado_id": ticket.asignado_id},
+            "despues": {"estado": actualizado.estado.value, "asignado_id": actualizado.asignado_id},
+        },
+    )
+    return actualizado
 
 
 @router.get("/{id}/comentarios", response_model=list[Comentario])
@@ -120,8 +152,16 @@ async def create_comentario(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sin permiso para comentar este ticket",
         )
-    comentario = await ticket_service.create_comentario(
-        get_db(), id, payload, autor_id=current.id
+    db = get_db()
+    comentario = await ticket_service.create_comentario(db, id, payload, autor_id=current.id)
+    await auditoria_service.record_required(
+        db,
+        accion="tickets.comentario_create",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="ticket",
+        recurso_id=id,
+        detalle={"comentario_id": comentario.id},
     )
     response.headers["Location"] = f"/api/v1/tickets/{id}/comentarios/{comentario.id}"
     return comentario

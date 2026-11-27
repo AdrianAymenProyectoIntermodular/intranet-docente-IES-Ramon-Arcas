@@ -98,7 +98,9 @@ async def reemplazar(
     return await obtener(db, emplazamiento_id)
 
 
-async def borrar(db: AsyncIOMotorDatabase, emplazamiento_id: str, *, usuario: UsuarioPublic) -> None:
+async def borrar(db: AsyncIOMotorDatabase, emplazamiento_id: str, *, usuario: UsuarioPublic) -> Emplazamiento:
+    """Borra el diseño y lo devuelve (para dejar traza de qué se borró)."""
     actual = await obtener(db, emplazamiento_id)
     comprobar_autor(actual, usuario)
     await db[COLLECTION].delete_one({"_id": _oid(emplazamiento_id)})
+    return actual

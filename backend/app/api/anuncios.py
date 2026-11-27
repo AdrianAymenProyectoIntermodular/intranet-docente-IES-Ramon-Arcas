@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.deps import CurrentActiveUser, require_roles
 from app.models.anuncio import Anuncio, AnuncioCreate, AnuncioFijar
 from app.models.usuario import UsuarioPublic
-from app.services import anuncio_service
+from app.services import anuncio_service, auditoria_service
 
 router = APIRouter(prefix="/anuncios", tags=["Anuncios"])
 
@@ -33,8 +33,16 @@ async def create_anuncio(
     current: Annotated[UsuarioPublic, Depends(require_roles("admin", "directiva"))],
 ) -> Anuncio:
     """Publicar anuncio; admin o directiva."""
-    anuncio = await anuncio_service.create_anuncio(
-        get_db(), payload, autor_id=current.id
+    db = get_db()
+    anuncio = await anuncio_service.create_anuncio(db, payload, autor_id=current.id)
+    await auditoria_service.record_required(
+        db,
+        accion="anuncios.create",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="anuncio",
+        recurso_id=anuncio.id,
+        detalle={"titulo": anuncio.titulo, "departamento": anuncio.departamento},
     )
     response.headers["Location"] = f"/api/v1/anuncios/{anuncio.id}"
     return anuncio
@@ -44,7 +52,18 @@ async def create_anuncio(
 async def fijar_anuncio(
     id: str,
     payload: AnuncioFijar,
-    _admin: Annotated[UsuarioPublic, Depends(require_roles("admin"))],
+    current: Annotated[UsuarioPublic, Depends(require_roles("admin"))],
 ) -> Anuncio:
     """Fijar o desfijar anuncio (solo admin)."""
-    return await anuncio_service.fijar_anuncio(get_db(), id, payload.fijado)
+    db = get_db()
+    anuncio = await anuncio_service.fijar_anuncio(db, id, payload.fijado)
+    await auditoria_service.record_required(
+        db,
+        accion="anuncios.fijar",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="anuncio",
+        recurso_id=anuncio.id,
+        detalle={"fijado": payload.fijado},
+    )
+    return anuncio

@@ -51,7 +51,8 @@ async def patch_horas(
     *,
     tutor_id: str | None,
     is_admin: bool,
-) -> FemAlumno:
+) -> tuple[FemAlumno, float]:
+    """Actualiza las horas y devuelve el alumno junto con las horas que tenía antes (auditoría)."""
     doc = await db[COLLECTION].find_one({"_id": _oid(alumno_id)})
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alumno FEM no encontrado")
@@ -70,7 +71,8 @@ async def patch_horas(
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alumno FEM no encontrado")
-    return await con_nombre(db, doc_to_fem_alumno(result), NOMBRES)
+    alumno = await con_nombre(db, doc_to_fem_alumno(result), NOMBRES)
+    return alumno, float(doc.get("horas_cursadas", 0))
 
 
 async def seed_alumno_demo(

@@ -256,8 +256,20 @@ Las notificaciones **no se crean desde la API**: las generan los servicios ante 
 
 Filtros: `usuario_id`, `accion`, `recurso_tipo`, `recurso_id`, `desde`, `hasta` (ISO 8601), `page`, `limit` (default 10). Intervalo inválido (`desde` > `hasta`) → 422.
 
-Acciones runtime: `auth.login_google`, `auth.login_failed`, `auth.logout`, `usuarios.create`, `usuarios.patch`, `usuarios.put_roles`, `retrasos.create`, `retrasos.consulta_historico`, `tickets.adjunto_create`, `tickets.adjunto_delete`.  
-En `patch` / `put_roles` el `detalle` incluye `antes` y `despues`. Las mutaciones de usuarios exigen persistir la traza (503 si falla Mongo); login/logout usan best-effort con log.
+Acciones runtime por módulo:
+
+| Módulo | Acciones |
+|--------|----------|
+| Auth | `auth.login_google`, `auth.login_failed`, `auth.logout` |
+| Usuarios | `usuarios.create`, `usuarios.patch`, `usuarios.put_roles` |
+| Anuncios | `anuncios.create`, `anuncios.fijar` |
+| Tickets | `tickets.create`, `tickets.patch`, `tickets.comentario_create`, `tickets.borrador_regenerar`, `tickets.adjunto_create`, `tickets.adjunto_delete` |
+| Retrasos | `retrasos.create`, `retrasos.consulta_historico` |
+| Emplazamientos | `emplazamientos.create`, `emplazamientos.update`, `emplazamientos.delete` |
+| FEM | `fem.horas_patch`, `fem.empresa_create`, `fem.empresa_patch`, `fem.empresa_geocodificar` |
+
+En `usuarios.patch` / `usuarios.put_roles` y `tickets.patch` el `detalle` incluye `antes` y `despues`; en `fem.horas_patch`, las horas antes y después.
+Las mutaciones exigen persistir la traza (503 si falla Mongo); login/logout y la geocodificación usan best-effort con log.
 
 ## Health
 

@@ -36,13 +36,24 @@ async def patch_fem_horas(
 ) -> FemAlumno:
     """Actualizar horas cursadas (máx. 500)."""
     is_admin = "admin" in current.roles
-    return await fem_service.patch_horas(
-        get_db(),
+    db = get_db()
+    alumno, horas_antes = await fem_service.patch_horas(
+        db,
         id,
         payload,
         tutor_id=None if is_admin else current.id,
         is_admin=is_admin,
     )
+    await auditoria_service.record_required(
+        db,
+        accion="fem.horas_patch",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="fem_alumno",
+        recurso_id=id,
+        detalle={"antes": horas_antes, "despues": alumno.horas_cursadas},
+    )
+    return alumno
 
 
 @router.get("/empresas", response_model=list[Empresa])
@@ -101,7 +112,18 @@ async def patch_empresa(
 @router.post("/empresas/{id}/geocodificar", response_model=Empresa)
 async def geocodificar_empresa(
     id: str,
-    _current: Annotated[UsuarioPublic, Depends(require_roles("admin"))],
+    current: Annotated[UsuarioPublic, Depends(require_roles("admin"))],
 ) -> Empresa:
     """Reintenta situar la empresa en el mapa (si Nominatim falló en el alta)."""
-    return await fem_empresa_service.reintentar_geocodificacion(get_db(), id)
+    db = get_db()
+    empresa = await fem_empresa_service.reintentar_geocodificacion(db, id)
+    await auditoria_service.record(
+        db,
+        accion="fem.empresa_geocodificar",
+        usuario_id=current.id,
+        usuario_nombre=current.name,
+        recurso_tipo="fem_empresa",
+        recurso_id=id,
+        detalle={"geocodificada": empresa.geocodificada},
+    )
+    return empresa

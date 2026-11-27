@@ -8,11 +8,23 @@ from app.core.database import get_db
 from app.core.deps import require_roles
 from app.models.emplazamiento import Emplazamiento, EmplazamientoCreate
 from app.models.usuario import UsuarioPublic
-from app.services import emplazamiento_service
+from app.services import auditoria_service, emplazamiento_service
 
 router = APIRouter(prefix="/emplazamientos", tags=["Emplazamientos"])
 
 DocenteOAdmin = Annotated[UsuarioPublic, Depends(require_roles("docente", "admin"))]
+
+
+async def _auditar(accion: str, usuario: UsuarioPublic, emplazamiento: Emplazamiento) -> None:
+    await auditoria_service.record_required(
+        get_db(),
+        accion=accion,
+        usuario_id=usuario.id,
+        usuario_nombre=usuario.name,
+        recurso_tipo="emplazamiento",
+        recurso_id=emplazamiento.id,
+        detalle={"nombre": emplazamiento.nombre, "grupo": emplazamiento.grupo, "modulo": emplazamiento.modulo},
+    )
 
 
 @router.get("", response_model=list[Emplazamiento])
@@ -28,6 +40,7 @@ async def listar(
 @router.post("", response_model=Emplazamiento, status_code=status.HTTP_201_CREATED)
 async def crear(payload: EmplazamientoCreate, response: Response, current: DocenteOAdmin) -> Emplazamiento:
     emplazamiento = await emplazamiento_service.crear(get_db(), payload, autor=current)
+    await _auditar("emplazamientos.create", current, emplazamiento)
     response.headers["Location"] = f"/api/v1/emplazamientos/{emplazamiento.id}"
     return emplazamiento
 
@@ -40,10 +53,13 @@ async def obtener(id: str, _current: DocenteOAdmin) -> Emplazamiento:
 @router.put("/{id}", response_model=Emplazamiento)
 async def reemplazar(id: str, payload: EmplazamientoCreate, current: DocenteOAdmin) -> Emplazamiento:
     """Sustituye el diseño completo (solo autor o admin)."""
-    return await emplazamiento_service.reemplazar(get_db(), id, payload, usuario=current)
+    emplazamiento = await emplazamiento_service.reemplazar(get_db(), id, payload, usuario=current)
+    await _auditar("emplazamientos.update", current, emplazamiento)
+    return emplazamiento
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def borrar(id: str, current: DocenteOAdmin) -> Response:
-    await emplazamiento_service.borrar(get_db(), id, usuario=current)
+    borrado = await emplazamiento_service.borrar(get_db(), id, usuario=current)
+    await _auditar("emplazamientos.delete", current, borrado)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

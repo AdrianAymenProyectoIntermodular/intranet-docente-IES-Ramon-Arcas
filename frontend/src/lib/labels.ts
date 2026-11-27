@@ -81,6 +81,21 @@ export const ACCION_AUDITORIA: Record<string, string> = {
   'usuarios.put_roles': 'Cambio de roles',
   'retrasos.create': 'Registro de retraso',
   'retrasos.consulta_historico': 'Consulta de histórico de retrasos',
+  'anuncios.create': 'Publicación de anuncio',
+  'anuncios.fijar': 'Anuncio fijado o desfijado',
+  'tickets.create': 'Nueva solicitud',
+  'tickets.patch': 'Cambio de estado o asignación de solicitud',
+  'tickets.comentario_create': 'Comentario en solicitud',
+  'tickets.borrador_regenerar': 'Borrador RRSS regenerado',
+  'tickets.adjunto_create': 'Adjunto añadido a solicitud',
+  'tickets.adjunto_delete': 'Adjunto borrado de solicitud',
+  'emplazamientos.create': 'Diseño de aula creado',
+  'emplazamientos.update': 'Diseño de aula modificado',
+  'emplazamientos.delete': 'Diseño de aula borrado',
+  'fem.horas_patch': 'Horas FEM actualizadas',
+  'fem.empresa_create': 'Alta de empresa FEM',
+  'fem.empresa_patch': 'Modificación de empresa FEM',
+  'fem.empresa_geocodificar': 'Empresa FEM geolocalizada',
 }
 
 const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })
