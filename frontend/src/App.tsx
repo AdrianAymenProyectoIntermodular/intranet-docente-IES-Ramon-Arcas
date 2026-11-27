@@ -1,121 +1,97 @@
-import { useCallback, useEffect, useState } from 'react'
-import { GoogleLoginButton } from './components/GoogleLoginButton'
-import { UsuariosAdmin } from './components/UsuariosAdmin'
+import { Route, Routes } from 'react-router'
+import { BlockedPage, LoginPage, OfflinePage, PendingPage, SplashScreen } from './auth/AccessPages'
+import { useAuth } from './auth/auth-context'
+import { AppShell } from './components/layout/AppShell'
+import { RequireRole } from './components/layout/RequireRole'
+import { MODULOS_EN_DESARROLLO } from './lib/navigation'
+import { rolesDe } from './lib/permissions'
 import { AnunciosPage } from './pages/AnunciosPage'
-import { HomePage } from './pages/HomePage'
-import { PendingPage } from './pages/PendingPage'
-import { TicketsPage } from './pages/TicketsPage'
-import {
-  bootstrapSession,
-  fetchMe,
-  fetchMiHorario,
-  logout,
-  type Horario,
-  type UsuarioMe,
-} from './services/api'
-import './App.css'
+import { AuditoriaPage } from './pages/AuditoriaPage'
+import { BienvenidaPage } from './pages/BienvenidaPage'
+import { DireccionPage } from './pages/DireccionPage'
+import { EmplazamientoPage } from './pages/emplazamiento/EmplazamientoPage'
+import { FemPage } from './pages/FemPage'
+import { HorarioPage } from './pages/HorarioPage'
+import { InicioPage } from './pages/InicioPage'
+import { ModuloEnDesarrolloPage } from './pages/ModuloEnDesarrolloPage'
+import { NotFoundPage } from './pages/NotFoundPage'
+import { PerfilPage } from './pages/PerfilPage'
+import { RetrasosPage } from './pages/RetrasosPage'
+import { SolicitudesPage } from './pages/solicitudes/SolicitudesPage'
+import { UsuariosPage } from './pages/UsuariosPage'
 
-function App() {
-  const [user, setUser] = useState<UsuarioMe | null>(null)
-  const [horario, setHorario] = useState<Horario | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+/** Puerta de sesión: solo las cuentas activas entran en la intranet. */
+export default function App() {
+  const { status } = useAuth()
 
-  /**
-   * Arranque: refresh por cookie → auth/me.
-   * Horario solo si la cuenta está activa (pendiente no puede llamar a /usuarios/me/horario).
-   */
-  const loadSession = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const ok = await bootstrapSession()
-      if (!ok) {
-        setUser(null)
-        setHorario(null)
-        return
-      }
-      const me = await fetchMe()
-      setUser(me)
-      if (me.estado === 'activo') {
-        const h = await fetchMiHorario()
-        setHorario(h)
-      } else {
-        setHorario(null)
-      }
-    } catch (err) {
-      setUser(null)
-      setHorario(null)
-      setError(err instanceof Error ? err.message : 'Error de sesión')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadSession()
-  }, [loadSession])
-
-  const onLogout = async () => {
-    await logout()
-    setUser(null)
-    setHorario(null)
-  }
+  if (status === 'loading') return <SplashScreen />
+  if (status === 'error') return <OfflinePage />
+  if (status === 'anonimo') return <LoginPage />
+  if (status === 'pendiente') return <PendingPage />
+  if (status === 'bloqueado') return <BlockedPage />
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Intranet Docente</h1>
-        <p>IES Ramón Arcas Meca</p>
-      </header>
-
-      <main className="app-main">
-        {loading && <p>Cargando…</p>}
-
-        {!loading && !user && (
-          <section className="card">
-            <h2>Acceso</h2>
-            <p>Inicia sesión con tu cuenta de Google.</p>
-            <GoogleLoginButton onLoggedIn={loadSession} onError={setError} />
-            {error && <p className="error">{error}</p>}
-            <p className="hint">
-              Si el login no abre o ves pantalla en blanco: permite ventanas emergentes para{' '}
-              <code>localhost:5173</code> o abre la app en Chrome/Edge del sistema (no en el
-              preview embebido del editor).
-            </p>
-          </section>
-        )}
-
-        {!loading && user?.estado === 'pendiente' && (
-          <PendingPage user={user} onLogout={() => void onLogout()} />
-        )}
-
-        {!loading && user?.estado === 'activo' && (
-          <>
-            <HomePage user={user} horario={horario} onLogout={() => void onLogout()} />
-            <AnunciosPage roles={user.roles} />
-            <TicketsPage roles={user.roles} userId={user.id} />
-            <UsuariosAdmin enabled={user.roles.includes('admin')} />
-          </>
-        )}
-
-        {!loading && user && user.estado !== 'pendiente' && user.estado !== 'activo' && (
-          <section className="card">
-            <div className="row">
-              <h2>Estado de cuenta</h2>
-              <button type="button" onClick={() => void onLogout()}>
-                Cerrar sesión
-              </button>
-            </div>
-            <p>
-              Tu cuenta tiene el estado <code>{user.estado}</code>, que no permite usar la
-              intranet ahora mismo. Contacta con un administrador.
-            </p>
-          </section>
-        )}
-      </main>
-    </div>
+    <Routes>
+      <Route element={<AppShell />}>
+        <Route index element={<InicioPage />} />
+        <Route path="bienvenida" element={<BienvenidaPage />} />
+        <Route path="anuncios" element={<AnunciosPage />} />
+        <Route path="solicitudes" element={<SolicitudesPage />} />
+        <Route path="horario" element={<HorarioPage />} />
+        <Route path="perfil" element={<PerfilPage />} />
+        <Route
+          path="retrasos"
+          element={
+            <RequireRole roles={rolesDe('retrasos.registrar')}>
+              <RetrasosPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="emplazamiento"
+          element={
+            <RequireRole roles={rolesDe('emplazamiento.gestionar')}>
+              <EmplazamientoPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="fem"
+          element={
+            <RequireRole roles={rolesDe('fem.ver')}>
+              <FemPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="direccion"
+          element={
+            <RequireRole roles={rolesDe('dashboard.ver')}>
+              <DireccionPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="auditoria"
+          element={
+            <RequireRole roles={rolesDe('auditoria.ver')}>
+              <AuditoriaPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="admin/usuarios"
+          element={
+            <RequireRole roles={rolesDe('usuarios.gestionar')}>
+              <UsuariosPage />
+            </RequireRole>
+          }
+        />
+        {MODULOS_EN_DESARROLLO.map((m) => (
+          <Route key={m.id} path={m.path.slice(1)} element={<ModuloEnDesarrolloPage modulo={m} />} />
+        ))}
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   )
 }
-
-export default App

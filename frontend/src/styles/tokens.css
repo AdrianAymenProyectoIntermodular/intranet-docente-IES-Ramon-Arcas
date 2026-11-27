@@ -1,0 +1,93 @@
+/*
+ * Tokens del sistema de diseño de la Intranet Docente.
+ * Acento: amarillo-sol del logotipo del IES (#F7A903).
+ * Toda la interfaz consume estas variables; no usar hex sueltos en componentes.
+ */
+:root {
+  /* Marca */
+  --sol: #f7a903;
+  --sol-hover: #e89d00;
+  --sol-press: #d48f00;
+  --sol-ink: #8a5c00; /* acento como texto sobre blanco (AA) */
+  --sol-wash: #fff6e0; /* fondos suaves de selección */
+  --sol-ring: rgb(247 169 3 / 0.45);
+
+  /* Neutros */
+  --tinta: #16223a; /* texto principal: marino muy oscuro */
+  --tinta-2: #4f5a6b; /* texto secundario */
+  --tinta-3: #7a8494; /* texto terciario / placeholders */
+  --fondo: #f6f5f1; /* blanco roto */
+  --superficie: #ffffff;
+  --superficie-2: #fbfaf7; /* bandas internas */
+  --hundido: #efeee9; /* pistas, inputs deshabilitados */
+  --borde: #e5e3dc;
+  --borde-fuerte: #d3d0c6;
+
+  /* Estados (distintos del acento) */
+  --ok: #15803d;
+  --ok-wash: #e9f6ee;
+  --error: #c62828;
+  --error-wash: #fdecec;
+  --aviso: #c2410c;
+  --aviso-wash: #fff0e6;
+  --info: #2556a8;
+  --info-wash: #eaf1fb;
+
+  /* Tipografía */
+  --font-display: 'Roboto Slab Variable', 'Rockwell', Georgia, serif;
+  --font-text: 'Figtree Variable', 'Segoe UI', system-ui, sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.9375rem;
+  --fs-md: 1.0625rem;
+  --fs-lg: 1.3125rem;
+  --fs-xl: 1.75rem;
+  --fs-2xl: 2.25rem;
+  --lh-tight: 1.2;
+  --lh-text: 1.55;
+
+  /* Espaciado (escala de 4px) */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.25rem;
+  --s-6: 1.5rem;
+  --s-8: 2rem;
+  --s-10: 2.5rem;
+  --s-12: 3rem;
+
+  /* Radios: jerarquía, no un único valor */
+  --r-sm: 6px; /* chips internos, kbd */
+  --r-md: 10px; /* controles */
+  --r-lg: 16px; /* contenedores */
+  --r-full: 999px;
+
+  /* Elevación: muy contenida */
+  --sombra-1: 0 1px 2px rgb(22 34 58 / 0.05);
+  --sombra-2: 0 6px 24px -8px rgb(22 34 58 / 0.14);
+  --sombra-modal: 0 24px 64px -16px rgb(22 34 58 / 0.3);
+
+  /* Movimiento */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 140ms;
+  --t-base: 220ms;
+  --t-slow: 360ms;
+
+  /* Layout */
+  --sidebar-w: 268px;
+  --sidebar-w-collapsed: 76px;
+  --bottomnav-h: 64px;
+  --content-max: 1180px;
+
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-base: 0ms;
+    --t-slow: 0ms;
+  }
+}

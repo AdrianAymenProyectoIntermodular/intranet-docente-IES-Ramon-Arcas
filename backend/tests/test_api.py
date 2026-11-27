@@ -298,7 +298,12 @@ async def test_tickets_state_machine(client: AsyncClient, monkeypatch: pytest.Mo
     created = await client.post(
         "/api/v1/tickets",
         headers=headers,
-        json={"tipo": "rmi", "titulo": "Proyector roto", "descripcion": "Aula A1"},
+        json={
+            "tipo": "rmi",
+            "titulo": "Proyector roto",
+            "descripcion": "No da imagen",
+            "datos": {"aula": "A1", "dispositivos": "Proyector"},
+        },
     )
     assert created.status_code == 201
     ticket_id = created.json()["id"]
@@ -321,6 +326,11 @@ async def test_tickets_state_machine(client: AsyncClient, monkeypatch: pytest.Mo
         roles=[Role.responsable_ticket, Role.docente],
     )
     resp_headers = {"Authorization": f"Bearer {resp_access}"}
+    # El responsable solo gestiona los tipos de su competencia.
+    resp_me = await client.get("/api/v1/auth/me", headers=resp_headers)
+    await usuario_service.patch_usuario(
+        get_db(), resp_me.json()["id"], UsuarioPatch(competencias=["rmi"])
+    )
 
     step1 = await client.patch(
         f"/api/v1/tickets/{ticket_id}",

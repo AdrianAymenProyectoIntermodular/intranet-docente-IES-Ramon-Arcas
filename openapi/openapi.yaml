@@ -35,6 +35,8 @@ tags:
     description: KPIs para equipo directivo
   - name: Retrasos
     description: Registro de retrasos del alumnado e historico individual
+  - name: Emplazamientos
+    description: Diseños de pupitres del aula por grupo y módulo
   - name: Notificaciones
     description: Bandeja de notificaciones y suscripciones Web Push
   - name: Auditoria
@@ -953,6 +955,12 @@ paths:
       description: |
         Máquina de estados: `abierto` → `en_proceso` → `resuelto` → `cerrado`.
         Transiciones inválidas → 422.
+
+        Gestiona `admin`, o un `responsable_ticket` con competencia en el tipo
+        del ticket que sea su asignado (o el ticket esté libre); si no → 403.
+        `asignado_id`: un responsable solo puede asignarse a sí mismo; asignar a
+        otra persona es de `admin` (403). El destino debe ser responsable activo
+        con competencia en el tipo → si no, 422.
       operationId: patchTicket
       security:
         - BearerAuth: []
@@ -999,6 +1007,136 @@ paths:
                 $ref: '#/components/schemas/ErrorDetail'
               example:
                 detail: "Transicion invalida: abierto -> cerrado"
+
+  /api/v1/tickets/{id}/borrador:
+    post:
+      tags: [Tickets]
+      summary: Regenerar el borrador de una publicación RRSS
+      description: |
+        Vuelve a generar el texto propuesto para redes con el proveedor configurado
+        (`IA_PROVEEDOR`; hoy `plantilla`, temporal y sin IA). Al crear un ticket `rrss`
+        el borrador se genera solo, en segundo plano. Nunca se publica nada.
+        Pueden regenerarlo el solicitante, el responsable asignado o `admin`.
+        Si el proveedor falla, el borrador queda en estado `error` (la petición responde 200).
+      operationId: regenerarBorradorRrss
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Ticket con el borrador actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: El ticket no es de tipo `rrss`
+
+  /api/v1/tickets/{id}/adjuntos:
+    post:
+      tags: [Tickets]
+      summary: Adjuntar un archivo a la solicitud
+      description: |
+        Máximo 5 MB y 10 adjuntos por solicitud. Se valida extensión, MIME y la firma
+        real del archivo (bytes mágicos). Formatos por tipo: `rrss` y `rmi` →
+        JPG/PNG/WEBP; `compras` → PDF/JPG/PNG; `otro` → PDF/JPG/PNG/WEBP.
+        Pueden adjuntar el solicitante, el responsable asignado o `admin`. Auditado.
+      operationId: uploadTicketAdjunto
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [archivo]
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Adjunto guardado
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdjuntoMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Límite de adjuntos alcanzado
+        '413':
+          description: Archivo mayor de 5 MB
+        '415':
+          description: Formato no permitido para este tipo de solicitud
+
+  /api/v1/tickets/{id}/adjuntos/{adjunto_id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+      - name: adjunto_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Tickets]
+      summary: Descargar un adjunto
+      description: Mismo permiso que los comentarios (implicados y roles con privilegio).
+      operationId: getTicketAdjunto
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Contenido del archivo (`X-Content-Type-Options` nosniff)
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tickets]
+      summary: Borrar un adjunto
+      description: Quien lo subió o `admin`. Auditado.
+      operationId: deleteTicketAdjunto
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Adjunto borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/v1/tickets/{id}/comentarios:
     get:
@@ -1139,6 +1277,129 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
 
+  /api/v1/fem/empresas:
+    get:
+      tags: [FEM]
+      summary: Empresas colaboradoras
+      description: |
+        Array con ubicación (`lat`, `lon`) para el mapa y número de alumnos en
+        prácticas ahora (`alumnos`). Roles `tutor`, `admin`, `directiva`.
+      operationId: listFemEmpresas
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: municipio
+          in: query
+          schema:
+            type: string
+        - name: ciclo
+          in: query
+          schema:
+            type: string
+        - name: activa
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Empresas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [FEM]
+      summary: Alta de empresa colaboradora
+      description: |
+        Solo `admin`. La dirección se geocodifica con Nominatim (1 petición/s, solo
+        la dirección). Si no se encuentra, se guarda con `geocodificada: false`.
+      operationId: createFemEmpresa
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FemEmpresaCreate'
+      responses:
+        '201':
+          description: Empresa creada
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/fem/empresas/{id}:
+    patch:
+      tags: [FEM]
+      summary: Modificar empresa
+      description: Solo `admin`. Si cambia la dirección o el municipio se vuelve a geocodificar.
+      operationId: patchFemEmpresa
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FemEmpresaPatch'
+      responses:
+        '200':
+          description: Empresa actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/fem/empresas/{id}/geocodificar:
+    post:
+      tags: [FEM]
+      summary: Reintentar la geocodificación
+      description: Solo `admin`. Si no se encuentra, conserva las coordenadas que hubiera.
+      operationId: geocodificarFemEmpresa
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Empresa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FemEmpresa'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /api/v1/dashboard/kpis:
     get:
       tags: [Dashboard]
@@ -1153,6 +1414,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DashboardKpis'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/dashboard/fem:
+    get:
+      tags: [Dashboard]
+      summary: Indicadores de Formación en Empresas
+      description: |
+        KPI 5: porcentaje de empresas activas sobre las registradas, en total, por
+        municipio y por ciclo. KPI 6: horas FEM cursadas sobre las previstas (500 por
+        alumno). Roles `directiva`, `admin`.
+      operationId: getDashboardFem
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Indicadores FEM
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardFem'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1220,6 +1504,45 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v1/alumnos:
+    get:
+      tags: [Retrasos]
+      summary: Selector de alumnado
+      description: |
+        Busqueda acotada (maximo 50 resultados) para registrar retrasos.
+        Solo expone id, nombre, grupo y curso. Devuelve array (excepcion de paginacion).
+      operationId: listAlumnos
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: grupo
+          in: query
+          required: false
+          schema:
+            type: string
+            example: 1ESO-A
+        - name: q
+          in: query
+          required: false
+          description: Fragmento del nombre (sin distinguir mayusculas)
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        '200':
+          description: Alumnado que coincide con el filtro
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items:
+                  $ref: '#/components/schemas/Alumno'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/v1/alumnos/{id}/retrasos:
     get:
       tags: [Retrasos]
@@ -1251,6 +1574,136 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+
+  /api/v1/emplazamientos:
+    get:
+      tags: [Emplazamientos]
+      summary: Diseños de aula de una clase
+      description: Array (excepción de paginación) ordenado por última modificación; máx. 100.
+      operationId: listEmplazamientos
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: grupo
+          in: query
+          schema:
+            type: string
+        - name: modulo
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Diseños
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Emplazamientos]
+      summary: Crear un diseño de aula
+      description: |
+        Roles `docente`, `admin`. Validación: puestos dentro de la rejilla, sin
+        posiciones ni alumnos repetidos y alumnado del mismo grupo; si no, 422.
+      operationId: createEmplazamiento
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmplazamientoCreate'
+      responses:
+        '201':
+          description: Diseño creado
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /api/v1/emplazamientos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [Emplazamientos]
+      summary: Detalle de un diseño
+      operationId: getEmplazamiento
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Diseño
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Emplazamientos]
+      summary: Sustituir un diseño
+      description: Solo el autor o `admin` (403).
+      operationId: replaceEmplazamiento
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmplazamientoCreate'
+      responses:
+        '200':
+          description: Diseño actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Emplazamiento'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+    delete:
+      tags: [Emplazamientos]
+      summary: Borrar un diseño
+      description: Solo el autor o `admin` (403).
+      operationId: deleteEmplazamiento
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Diseño borrado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /api/v1/notificaciones:
     get:
@@ -1659,6 +2112,14 @@ components:
         telefono:
           type: string
           nullable: true
+        competencias:
+          type: array
+          description: |
+            Tipos de solicitud que gestiona. Solo tiene efecto con el rol
+            `responsable_ticket` (competencia, no rol nuevo).
+          items:
+            $ref: '#/components/schemas/TicketTipo'
+          example: [compras, rrss]
 
     UsuarioPaginated:
       type: object
@@ -1718,6 +2179,11 @@ components:
             $ref: '#/components/schemas/Role'
         estado:
           $ref: '#/components/schemas/UsuarioEstado'
+        competencias:
+          type: array
+          description: Sustituye la lista de tipos de solicitud que gestiona (sin duplicados).
+          items:
+            $ref: '#/components/schemas/TicketTipo'
 
     BloqueHorario:
       type: object
@@ -1776,6 +2242,11 @@ components:
         creado_en:
           type: string
           format: date-time
+        autor_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del autor (resuelto por el servidor)
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0a2"
         titulo: Entrega de memorias DAW
@@ -1978,6 +2449,28 @@ components:
         creado_en:
           type: string
           format: date-time
+        datos:
+          $ref: '#/components/schemas/TicketDatos'
+        adjuntos:
+          type: array
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/AdjuntoMeta'
+        borrador:
+          allOf:
+            - $ref: '#/components/schemas/BorradorRrss'
+          nullable: true
+          description: Solo en tickets `rrss`.
+        solicitante_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre de quien pide (resuelto por el servidor)
+        asignado_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del responsable asignado (resuelto por el servidor)
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0d4"
         tipo: rmi
@@ -1985,8 +2478,57 @@ components:
         titulo: Proyector aula 12 no enciende
         descripcion: No da imagen desde esta manana.
         solicitante_id: "64f1a2b3c4d5e6f7a8b9c0b1"
-        asignado_id: null
+        asignado_id: "64f1a2b3c4d5e6f7a8b9c0b3"
         creado_en: "2026-10-06T09:30:00Z"
+        datos:
+          aula: "12"
+          dispositivos: Proyector
+
+    BorradorRrss:
+      type: object
+      readOnly: true
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [pendiente, listo, error]
+        texto:
+          type: string
+          nullable: true
+        proveedor:
+          type: string
+          nullable: true
+          description: '`plantilla` = generador temporal sin IA'
+        modelo:
+          type: string
+          nullable: true
+        generado_en:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    AdjuntoMeta:
+      type: object
+      required: [id, nombre, tipo_mime, tamano, subido_por_id, subido_en]
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        tipo_mime:
+          type: string
+          example: image/png
+        tamano:
+          type: integer
+          description: Bytes
+        subido_por_id:
+          type: string
+        subido_en:
+          type: string
+          format: date-time
 
     TicketCreate:
       type: object
@@ -1996,12 +2538,69 @@ components:
           $ref: '#/components/schemas/TicketTipo'
         titulo:
           type: string
+          maxLength: 140
         descripcion:
           type: string
+          maxLength: 4000
+        datos:
+          $ref: '#/components/schemas/TicketDatos'
       example:
         tipo: rmi
         titulo: Proyector aula 12 no enciende
         descripcion: No da imagen desde esta manana.
+        datos:
+          aula: "12"
+          dispositivos: Proyector
+
+    TicketDatos:
+      description: |
+        Datos específicos del tipo de solicitud (campo flexible). Se valida según
+        `tipo`: `rmi` → TicketDatosRmi, `compras` → TicketDatosCompras,
+        `rrss` → TicketDatosRrss, `otro` → objeto vacío. Campos no previstos → 422.
+        Obligatorio en la práctica para `rmi`, `compras` y `rrss`.
+      oneOf:
+        - $ref: '#/components/schemas/TicketDatosRmi'
+        - $ref: '#/components/schemas/TicketDatosCompras'
+        - $ref: '#/components/schemas/TicketDatosRrss'
+        - type: object
+          additionalProperties: false
+
+    TicketDatosRmi:
+      type: object
+      required: [aula, dispositivos]
+      additionalProperties: false
+      properties:
+        aula:
+          type: string
+          maxLength: 60
+        dispositivos:
+          type: string
+          maxLength: 200
+
+    TicketDatosCompras:
+      type: object
+      required: [articulos, precio_total]
+      additionalProperties: false
+      properties:
+        articulos:
+          type: string
+          maxLength: 2000
+        precio_total:
+          type: number
+          minimum: 0
+          maximum: 100000
+        requiere_presupuesto:
+          type: boolean
+          default: false
+
+    TicketDatosRrss:
+      type: object
+      required: [departamento]
+      additionalProperties: false
+      properties:
+        departamento:
+          type: string
+          maxLength: 80
 
     TicketPatch:
       type: object
@@ -2027,6 +2626,11 @@ components:
         creado_en:
           type: string
           format: date-time
+        autor_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del autor (resuelto por el servidor)
       example:
         id: "64f1a2b3c4d5e6f7a8b9c0e2"
         autor_id: "64f1a2b3c4d5e6f7a8b9c0b3"
@@ -2063,6 +2667,18 @@ components:
           example: 500
         tutor_id:
           type: string
+        empresa_id:
+          type: string
+          nullable: true
+        ciclo:
+          type: string
+          nullable: true
+          example: DAW
+        tutor_nombre:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Nombre del tutor (resuelto por el servidor)
 
     FemHorasPatch:
       type: object
@@ -2072,6 +2688,113 @@ components:
           type: number
           minimum: 0
           maximum: 500
+
+    FemEmpresaCreate:
+      type: object
+      required: [nombre, direccion, municipio]
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+          maxLength: 120
+        direccion:
+          type: string
+          maxLength: 200
+        municipio:
+          type: string
+          example: Lorca
+        ciclos:
+          type: array
+          items:
+            type: string
+          example: [DAW, SMR]
+        activa:
+          type: boolean
+          default: true
+
+    FemEmpresaPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+        direccion:
+          type: string
+        municipio:
+          type: string
+        ciclos:
+          type: array
+          items:
+            type: string
+        activa:
+          type: boolean
+
+    FemEmpresa:
+      allOf:
+        - $ref: '#/components/schemas/FemEmpresaCreate'
+        - type: object
+          required: [id, geocodificada, alumnos]
+          properties:
+            id:
+              type: string
+            lat:
+              type: number
+              nullable: true
+            lon:
+              type: number
+              nullable: true
+            geocodificada:
+              type: boolean
+              description: false si la dirección no se pudo situar en el mapa
+            alumnos:
+              type: integer
+              description: Alumnado en prácticas ahora en la empresa
+
+    ProporcionActivas:
+      type: object
+      required: [nombre, total, activas, porcentaje]
+      properties:
+        nombre:
+          type: string
+          description: Municipio o ciclo
+        total:
+          type: integer
+        activas:
+          type: integer
+        porcentaje:
+          type: number
+          example: 66.7
+
+    DashboardFem:
+      type: object
+      required: [empresas_total, empresas_activas, porcentaje_activas, por_municipio, por_ciclo, horas]
+      properties:
+        empresas_total:
+          type: integer
+        empresas_activas:
+          type: integer
+        porcentaje_activas:
+          type: number
+        por_municipio:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProporcionActivas'
+        por_ciclo:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProporcionActivas'
+        horas:
+          type: object
+          required: [alumnos, cursadas, previstas, porcentaje]
+          properties:
+            alumnos:
+              type: integer
+            cursadas:
+              type: number
+            previstas:
+              type: number
+            porcentaje:
+              type: number
 
     DashboardKpis:
       type: object
@@ -2144,6 +2867,21 @@ components:
           items:
             $ref: '#/components/schemas/SuscripcionPush'
 
+    Alumno:
+      type: object
+      required: [id, nombre, grupo, curso]
+      properties:
+        id:
+          type: string
+        nombre:
+          type: string
+        grupo:
+          type: string
+          example: 1ESO-A
+        curso:
+          type: string
+          example: 1º ESO
+
     RetrasoCreate:
       type: object
       required: [alumno_id, fecha, hora, modulo]
@@ -2206,6 +2944,79 @@ components:
     NotificacionTipo:
       type: string
       enum: [anuncio_destacado, guardia_asignada, horario_modificado, ticket_estado]
+
+    Puesto:
+      type: object
+      required: [fila, columna]
+      additionalProperties: false
+      properties:
+        fila:
+          type: integer
+          minimum: 0
+          maximum: 9
+        columna:
+          type: integer
+          minimum: 0
+          maximum: 9
+        alumno_id:
+          type: string
+          nullable: true
+        equipo:
+          type: string
+          nullable: true
+          maxLength: 20
+
+    EmplazamientoCreate:
+      type: object
+      required: [nombre, grupo, modulo, distribucion, filas, columnas]
+      additionalProperties: false
+      properties:
+        nombre:
+          type: string
+          maxLength: 80
+        grupo:
+          type: string
+          example: 1ESO-A
+        modulo:
+          type: string
+          example: Matemáticas
+        distribucion:
+          type: string
+          enum: [filas, parejas, grupos, u, personalizada]
+        filas:
+          type: integer
+          minimum: 1
+          maximum: 10
+        columnas:
+          type: integer
+          minimum: 1
+          maximum: 10
+        puestos:
+          type: array
+          description: Pupitres de la rejilla; las celdas sin puesto son pasillo.
+          items:
+            $ref: '#/components/schemas/Puesto'
+
+    Emplazamiento:
+      allOf:
+        - $ref: '#/components/schemas/EmplazamientoCreate'
+        - type: object
+          required: [id, autor_id]
+          properties:
+            id:
+              type: string
+            autor_id:
+              type: string
+            autor_nombre:
+              type: string
+              nullable: true
+              readOnly: true
+            creado_en:
+              type: string
+              format: date-time
+            actualizado_en:
+              type: string
+              format: date-time
 
     Notificacion:
       type: object

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { loginWithGoogleIdToken } from '../services/api'
+import { loginWithGoogleIdToken } from '../services/auth'
 
 type Props = {
   onLoggedIn: () => void
@@ -17,8 +17,11 @@ export function GoogleLoginButton({ onLoggedIn, onError }: Props) {
   const onErrorRef = useRef(onError)
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
-  onLoggedInRef.current = onLoggedIn
-  onErrorRef.current = onError
+  // Mantiene los callbacks actuales sin reinicializar Google en cada render.
+  useEffect(() => {
+    onLoggedInRef.current = onLoggedIn
+    onErrorRef.current = onError
+  })
 
   useEffect(() => {
     if (!clientId || !hostRef.current) return
@@ -68,9 +71,9 @@ export function GoogleLoginButton({ onLoggedIn, onError }: Props) {
 
   if (!clientId) {
     return (
-      <p className="hint">
+      <p className="subtle">
         Configura <code>VITE_GOOGLE_CLIENT_ID</code> en <code>frontend/.env</code> para habilitar el
-        login.
+        acceso.
       </p>
     )
   }

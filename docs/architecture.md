@@ -27,7 +27,10 @@ No comparten base de datos, sesión ni autenticación.
 ### Frontend (PWA)
 
 - React + Vite + TypeScript
-- Service worker / manifest (plugin PWA de Vite; arranque mínimo sin PWA completa)
+- `react-router` (rutas reales sin recarga), `lucide-react` (iconografía), fuentes autoalojadas `@fontsource-variable` (Roboto Slab + Figtree)
+- `leaflet` + `react-leaflet` para el mapa FEM (teselas OpenStreetMap; geocodificación Nominatim en el backend)
+- Animaciones solo con CSS (sin librería de animación), respetando `prefers-reduced-motion`
+- Manifest + iconos instalables; service worker pendiente (Fase 4, junto a Web Push)
 
 ### Infraestructura local
 
@@ -76,8 +79,14 @@ POST /api/v1/auth/logout   → invalidación del refresh (Redis) + borra cookie
 
 ```
 pages/ → hooks/ + services/ → API HTTP (Bearer JWT + credentials include)
-components/ → UI reutilizable
+components/ui → sistema de diseño (tokens en styles/tokens.css)
+components/layout → AppShell (sidebar escritorio / barra inferior móvil), RequireRole
+auth/ → AuthProvider (refresh → /auth/me) y pantallas de acceso
+lib/ → permisos (espejo de roles-and-permissions.md), navegación, formato
 ```
+
+- Sin datos simulados: cada vista consume la API real. Los módulos sin API se muestran como "En desarrollo" sin datos.
+- `lib/permissions.ts` solo decide visibilidad; la autorización real es siempre del backend.
 
 Priorizar para el arranque de la PWA:
 
@@ -93,12 +102,12 @@ Endpoints operativos (fuera del contrato de negocio):
 
 ## Temporalización (fases)
 
-Alineada a la memoria del proyecto (apartado 5.14) y al estado del repositorio:
+Alineada a la memoria del proyecto ([memoria-proyecto.md](memoria-proyecto.md), apartado 5.14) y al estado del repositorio:
 
 | Fase | Contenido memoria | Estado en este repo |
 |------|-------------------|---------------------|
 | **1 — Cimientos** | Esquema / temporalización; auth básica; núcleo de roles | **Hecho.** OpenAPI + docs, Google OAuth + JWT/Redis, roles, Docker Compose, PWA mínima |
-| **2 — Núcleo funcional** | Anuncios, FEM, RRSS/IA, retrasos, aula, roles completos, onboarding, RMI/compras | **Parcial.** Runtime: anuncios, tickets (RMI/RRSS/compras), FEM (alumnos/horas), dashboard. Contrato: retrasos. Pendiente: emplazamiento aula, onboarding UI, IA RRSS, mapa FEM |
+| **2 — Núcleo funcional** | Anuncios, FEM, RRSS/IA, retrasos, aula, roles completos, onboarding, RMI/compras | **Casi completa.** Runtime + UI: anuncios, tickets (RMI/RRSS/compras + adjuntos), borrador RRSS (generador mock), FEM (alumnos/horas, empresas, mapa Leaflet), dashboard (KPIs 5 y 6), retrasos, emplazamiento en el aula, roles/auditoría (+ UI), onboarding (guía). Pendiente: ver [fase-2-reparto.md](fase-2-reparto.md#pendiente-para-cerrar-la-fase-2) |
 | **3 — Guardias y firma** | Guardias + ausencias/firma; convivencia; comisiones; módulo ticket restante | **Contrato definido** (guardias/ausencias/firma). Runtime: rama `Adrian-guardias-ausencias`. Convivencia / comisiones / reservas / docs: fuera de contrato aún |
 | **4 — Integraciones** | OAuth completo, Calendar, notificaciones push/email, docs técnicas | **Contrato** notificaciones + auditoría. Runtime y PWA instalable / Calendar: pendiente |
 
@@ -111,10 +120,10 @@ Alineada a la memoria del proyecto (apartado 5.14) y al estado del repositorio:
 
 Sin endpoints en OpenAPI todavía (detalle en [api-contract.md](api-contract.md)):
 
-- Emplazamiento en el aula, aula de convivencia, comparador de horarios
+- Aula de convivencia, comparador de horarios
 - Repositorio documental, reservas de espacios/recursos, comisiones de servicio
 - Onboarding / primeros pasos (contenido)
-- Mapa FEM / empresas, generación IA de borrador RRSS, Google Calendar
+- Google Calendar
 
 ## Decisiones cerradas
 
@@ -126,7 +135,10 @@ Sin endpoints en OpenAPI todavía (detalle en [api-contract.md](api-contract.md)
 - Guardias: `asignado_id` (ronda) vs `cubre_id` (quien realiza); regla de rondas en OpenAPI / api-contract.
 - Firma PDF: `proveedor` `manuscrita` \| `autofirma` + `firma_base64` (manuscrita = objetivo garantizado).
 - Perfil para PDF: `UsuarioMePatch` con `name`, `dni`, `telefono`.
+- Adjuntos de tickets en GridFS (MongoDB), sin infraestructura adicional; validación por bytes mágicos.
+- Solicitudes asignadas por competencias del usuario (`competencias`), no por roles nuevos.
 
 ## Pendiente de decisión
 
-- Librerías concretas: generación PDF, email, push (VAPID), AutoFirma cliente, módulo de IA para RRSS.
+- Librerías concretas: generación PDF, email, push (VAPID), AutoFirma cliente.
+- Proveedor de IA para el borrador RRSS. **Decidido el diseño**: interfaz `GeneradorBorrador` en `app/services/ia/` y selección por `IA_PROVEEDOR`; mientras tanto se usa el generador `plantilla` (temporal, sin IA, por indicación del profesorado).

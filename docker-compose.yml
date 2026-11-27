@@ -46,6 +46,8 @@ services:
     volumes:
       # Desarrollo: cambios en app/ sin rebuild
       - ./backend/app:/app/app
+      # Scripts de desarrollo (seed_demo); no se copian a la imagen
+      - ./backend/scripts:/app/scripts
     networks:
       - intranet
     healthcheck:

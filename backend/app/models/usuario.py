@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.models.ticket import TicketTipo
+
 
 class Role(str, Enum):
     admin = "admin"
@@ -48,6 +50,8 @@ class UsuarioPublic(BaseModel):
     origen_alta: OrigenAlta | None = None
     dni: str | None = None
     telefono: str | None = None
+    # Tipos de solicitud que gestiona (solo tiene efecto con el rol responsable_ticket).
+    competencias: list[TicketTipo] = Field(default_factory=list)
 
 
 class UsuarioMe(UsuarioPublic):
@@ -67,6 +71,7 @@ class UsuarioPatch(BaseModel):
     departamento: str | None = None
     roles: list[Role] | None = None
     estado: UsuarioEstado | None = None
+    competencias: list[TicketTipo] | None = None
 
 
 class UsuarioMePatch(BaseModel):
@@ -124,6 +129,7 @@ def doc_to_usuario(doc: dict[str, Any]) -> UsuarioPublic:
         origen_alta=OrigenAlta(origen) if origen else None,
         dni=doc.get("dni"),
         telefono=doc.get("telefono"),
+        competencias=[TicketTipo(c) for c in doc.get("competencias", []) if c in TicketTipo._value2member_map_],
     )
 
 

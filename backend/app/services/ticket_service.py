@@ -8,6 +8,8 @@ from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
+from app.models.usuario import UsuarioPublic
+from app.services.nombres import con_nombre, con_nombres
 from app.models.ticket import (
     TRANSICIONES_VALIDAS,
     Comentario,
@@ -22,6 +24,8 @@ from app.models.ticket import (
 )
 
 COLLECTION = "tickets"
+NOMBRES_TICKET = {"solicitante_id": "solicitante_nombre", "asignado_id": "asignado_nombre"}
+NOMBRES_COMENTARIO = {"autor_id": "autor_nombre"}
 COMENTARIOS = "ticket_comentarios"
 
 
@@ -41,7 +45,7 @@ async def get_ticket(db: AsyncIOMotorDatabase, ticket_id: str) -> Ticket:
     doc = await db[COLLECTION].find_one({"_id": _oid(ticket_id)})
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado")
-    return doc_to_ticket(doc)
+    return await con_nombre(db, doc_to_ticket(doc), NOMBRES_TICKET)
 
 
 async def list_tickets(
@@ -56,7 +60,47 @@ async def list_tickets(
     if estado is not None:
         query["estado"] = estado.value
     cursor = db[COLLECTION].find(query).sort("creado_en", -1)
-    return [doc_to_ticket(doc) async for doc in cursor]
+    return await con_nombres(db, [doc_to_ticket(doc) async for doc in cursor], NOMBRES_TICKET)
+
+
+ESTADOS_ABIERTOS = [TicketEstado.abierto.value, TicketEstado.en_proceso.value]
+
+
+async def responsables_de(db: AsyncIOMotorDatabase, tipo: TicketTipo) -> list[dict[str, Any]]:
+    """Responsables activos con competencia sobre el tipo de solicitud."""
+    cursor = db["usuarios"].find(
+        {
+            "estado": "activo",
+            "roles": "responsable_ticket",
+            "competencias": tipo.value,
+        }
+    ).sort("name", 1)
+    return [doc async for doc in cursor]
+
+
+async def elegir_responsable(db: AsyncIOMotorDatabase, tipo: TicketTipo) -> str | None:
+    """Responsable del tipo con menos solicitudes abiertas (empate: orden alfabético)."""
+    candidatos = await responsables_de(db, tipo)
+    if not candidatos:
+        return None
+    ids = [str(u["_id"]) for u in candidatos]
+    carga: dict[str, int] = dict.fromkeys(ids, 0)
+    pipeline = [
+        {"$match": {"asignado_id": {"$in": ids}, "estado": {"$in": ESTADOS_ABIERTOS}}},
+        {"$group": {"_id": "$asignado_id", "n": {"$sum": 1}}},
+    ]
+    async for row in db[COLLECTION].aggregate(pipeline):
+        carga[row["_id"]] = row["n"]
+    return min(ids, key=lambda i: carga[i])
+
+
+async def validar_asignable(db: AsyncIOMotorDatabase, usuario_id: str, tipo: TicketTipo) -> None:
+    """El destino de una asignación debe ser responsable activo con la competencia del tipo."""
+    if usuario_id not in {str(u["_id"]) for u in await responsables_de(db, tipo)}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="El usuario asignado no es responsable activo de este tipo de solicitud",
+        )
 
 
 async def create_ticket(
@@ -69,14 +113,18 @@ async def create_ticket(
         "tipo": payload.tipo.value,
         "titulo": payload.titulo,
         "descripcion": payload.descripcion,
+        "datos": payload.datos,
+        # Las publicaciones RRSS nacen con el borrador pendiente de generar.
+        "borrador": {"estado": "pendiente"} if payload.tipo == TicketTipo.rrss else None,
         "estado": TicketEstado.abierto.value,
         "solicitante_id": solicitante_id,
-        "asignado_id": None,
+        # Se asigna automáticamente al responsable del tipo (si existe).
+        "asignado_id": await elegir_responsable(db, payload.tipo),
         "creado_en": datetime.now(UTC),
     }
     result = await db[COLLECTION].insert_one(doc)
     doc["_id"] = result.inserted_id
-    return doc_to_ticket(doc)
+    return await con_nombre(db, doc_to_ticket(doc), NOMBRES_TICKET)
 
 
 async def patch_ticket(
@@ -100,7 +148,8 @@ async def patch_ticket(
             )
         updates["estado"] = payload.estado.value
 
-    if payload.asignado_id is not None:
+    if payload.asignado_id is not None and payload.asignado_id != current.asignado_id:
+        await validar_asignable(db, payload.asignado_id, current.tipo)
         updates["asignado_id"] = payload.asignado_id
 
     if not updates:
@@ -114,13 +163,13 @@ async def patch_ticket(
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket no encontrado")
-    return doc_to_ticket(result)
+    return await con_nombre(db, doc_to_ticket(result), NOMBRES_TICKET)
 
 
 async def list_comentarios(db: AsyncIOMotorDatabase, ticket_id: str) -> list[Comentario]:
     await get_ticket(db, ticket_id)
     cursor = db[COMENTARIOS].find({"ticket_id": ticket_id}).sort("creado_en", 1)
-    return [doc_to_comentario(doc) async for doc in cursor]
+    return await con_nombres(db, [doc_to_comentario(doc) async for doc in cursor], NOMBRES_COMENTARIO)
 
 
 async def create_comentario(
@@ -139,16 +188,24 @@ async def create_comentario(
     }
     result = await db[COMENTARIOS].insert_one(doc)
     doc["_id"] = result.inserted_id
-    return doc_to_comentario(doc)
+    return await con_nombre(db, doc_to_comentario(doc), NOMBRES_COMENTARIO)
 
 
-def puede_gestionar_ticket(user_roles: list[str], ticket: Ticket, user_id: str) -> bool:
-    """Transiciones/asignación: admin siempre; responsable_ticket si es el asignado (o aún libre)."""
-    if "admin" in user_roles:
+def puede_gestionar_ticket(user: UsuarioPublic, ticket: Ticket) -> bool:
+    """
+    Transiciones/asignación: admin siempre; responsable_ticket solo de los tipos
+    en los que tiene competencia, y si es el asignado (o la solicitud está libre).
+    """
+    if "admin" in user.roles:
         return True
-    if "responsable_ticket" in user_roles:
-        return ticket.asignado_id is None or ticket.asignado_id == user_id
+    if "responsable_ticket" in user.roles and ticket.tipo in user.competencias:
+        return ticket.asignado_id is None or ticket.asignado_id == user.id
     return False
+
+
+def puede_adjuntar(user: UsuarioPublic, ticket: Ticket) -> bool:
+    """Subir archivos: quien pidió la solicitud, su responsable asignado o admin."""
+    return "admin" in user.roles or user.id in (ticket.solicitante_id, ticket.asignado_id)
 
 
 def puede_comentar(user_roles: list[str], ticket: Ticket, user_id: str) -> bool:

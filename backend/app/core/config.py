@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     cookie_name: str = "refresh_token"
     cookie_path: str = "/api/v1/auth"
 
+    # Borrador de publicaciones RRSS. "plantilla" = generador temporal sin IA.
+    # Para conectar un modelo real se añade su proveedor en app/services/ia/.
+    ia_proveedor: str = "plantilla"
+    ia_api_key: str = ""
+    ia_modelo: str = ""
+
+    # Geocodificación de empresas FEM (Nominatim / OpenStreetMap).
+    geocodificacion_activa: bool = True
+    nominatim_url: str = "https://nominatim.openstreetmap.org/search"
+
     @model_validator(mode="after")
     def jwt_secret_must_be_strong_outside_dev(self) -> "Settings":
         """Fuera de development, exige un secreto JWT fuerte y no el default inseguro."""

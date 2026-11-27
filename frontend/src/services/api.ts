@@ -2,12 +2,14 @@
  * Cliente HTTP hacia la API.
  * - Access JWT en memoria del módulo (no localStorage; reduce riesgo XSS).
  * - Refresh en cookie HttpOnly (credentials: 'include').
+ * - Un único refresh en vuelo aunque varias peticiones reciban 401 a la vez.
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 /** Access token solo en RAM; se pierde al recargar y se recupera con refresh. */
 let accessToken: string | null = null
+let refreshInFlight: Promise<boolean> | null = null
 
 export function getAccessToken(): string | null {
   return accessToken
@@ -17,21 +19,46 @@ export function setAccessToken(token: string | null): void {
   accessToken = token
 }
 
+/** Error de API con el código HTTP para poder reaccionar (409, 403…). */
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 type ApiOptions = RequestInit & { skipAuth?: boolean }
 
-/** Renueva el access usando la cookie HttpOnly de refresh. */
-async function tryRefresh(): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  })
-  if (!res.ok) {
+async function doRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!res.ok) {
+      setAccessToken(null)
+      return false
+    }
+    const data = (await res.json()) as { access_token: string }
+    setAccessToken(data.access_token)
+    return true
+  } catch {
     setAccessToken(null)
     return false
   }
-  const data = (await res.json()) as { access_token: string }
-  setAccessToken(data.access_token)
-  return true
+}
+
+/** Renueva el access usando la cookie HttpOnly de refresh (single-flight). */
+function tryRefresh(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefresh().finally(() => {
+      refreshInFlight = null
+    })
+  }
+  return refreshInFlight
 }
 
 /**
@@ -43,260 +70,102 @@ export async function bootstrapSession(): Promise<boolean> {
   return tryRefresh()
 }
 
+/** Traduce el `detail` de FastAPI (texto o lista de validación 422) a un mensaje legible. */
+function detailToMessage(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (d && typeof d === 'object' && 'msg' in d ? String((d as { msg: unknown }).msg) : null))
+      .filter(Boolean)
+    if (msgs.length) return `Datos no válidos: ${msgs.join('; ')}`
+  }
+  return fallback
+}
+
+const MENSAJES_ESTADO: Record<number, string> = {
+  401: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
+  413: 'El archivo es demasiado grande.',
+  415: 'Tipo de archivo no permitido.',
+  403: 'No tienes permiso para realizar esta acción.',
+  404: 'No se ha encontrado el recurso.',
+  503: 'El servidor no está disponible en este momento.',
+}
+
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const headers = new Headers(options.headers)
-  if (!options.skipAuth) {
-    const token = getAccessToken()
-    if (token) headers.set('Authorization', `Bearer ${token}`)
-  }
-  if (options.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
-  }
-
-  let res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-  })
-
-  // Si el access caducó, intenta renovar una vez con la cookie refresh.
-  if (res.status === 401 && !options.skipAuth) {
-    const ok = await tryRefresh()
-    if (ok) {
-      const token = getAccessToken()
-      if (token) headers.set('Authorization', `Bearer ${token}`)
-      res = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers,
-        credentials: 'include',
-      })
-    }
-  }
-
-  if (!res.ok) {
-    let detail = res.statusText
-    try {
-      const err = (await res.json()) as { detail?: unknown }
-      if (err.detail) {
-        detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail)
-      }
-    } catch {
-      /* ignore */
-    }
-    throw new Error(detail)
-  }
-
+  const res = await apiRaw(path, options)
   if (res.status === 204) return undefined as T
   return (await res.json()) as T
 }
 
-export type UsuarioMe = {
-  id: string
-  name: string
-  email: string
-  departamento: string
-  roles: string[]
-  estado: string
+/** Subida multipart de un archivo (el navegador pone el Content-Type con su boundary). */
+export async function apiUpload<T>(path: string, campo: string, archivo: File): Promise<T> {
+  const body = new FormData()
+  body.append(campo, archivo)
+  const res = await apiRaw(path, { method: 'POST', body })
+  return (await res.json()) as T
 }
 
-export type UsuarioPublic = {
-  id: string
-  name: string
-  email: string
-  departamento: string
-  roles: string[]
-  estado: string
+/** Descarga binaria autenticada (p. ej. imágenes: un <img src> no puede enviar el Bearer). */
+export async function apiBlob(path: string): Promise<Blob> {
+  const res = await apiRaw(path)
+  return res.blob()
 }
 
-export type PaginatedUsuarios = {
-  items: UsuarioPublic[]
-  page: number
-  limit: number
-  total: number
-}
-
-export type UsuarioCreatePayload = {
-  name: string
-  email: string
-  departamento: string
-  roles: string[]
-  estado: 'pendiente' | 'activo' | 'inactivo'
-}
-
-export type UsuarioPatchPayload = {
-  name?: string
-  departamento?: string
-  roles?: string[]
-  estado?: 'pendiente' | 'activo' | 'inactivo'
-}
-
-export type Horario = {
-  usuario_id: string
-  dias: Record<string, Array<{ inicio: string; fin: string; tipo: string; asignatura?: string }>>
-}
-
-export async function loginWithGoogleIdToken(idToken: string): Promise<void> {
-  const data = await apiFetch<{ access_token: string }>('/api/v1/auth/google', {
-    method: 'POST',
-    body: JSON.stringify({ id_token: idToken }),
-    skipAuth: true,
-  })
-  setAccessToken(data.access_token)
-}
-
-export async function fetchMe(): Promise<UsuarioMe> {
-  return apiFetch<UsuarioMe>('/api/v1/auth/me')
-}
-
-export async function fetchMiHorario(): Promise<Horario> {
-  return apiFetch<Horario>('/api/v1/usuarios/me/horario')
-}
-
-export async function listUsuarios(params: {
-  page?: number
-  limit?: number
-  departamento?: string
-} = {}): Promise<PaginatedUsuarios> {
-  const q = new URLSearchParams()
-  if (params.page) q.set('page', String(params.page))
-  if (params.limit) q.set('limit', String(params.limit))
-  if (params.departamento) q.set('departamento', params.departamento)
-  const suffix = q.toString() ? `?${q.toString()}` : ''
-  return apiFetch<PaginatedUsuarios>(`/api/v1/usuarios${suffix}`)
-}
-
-export async function createUsuario(payload: UsuarioCreatePayload): Promise<UsuarioPublic> {
-  return apiFetch<UsuarioPublic>('/api/v1/usuarios', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
-export async function patchUsuario(
-  id: string,
-  payload: UsuarioPatchPayload,
-): Promise<UsuarioPublic> {
-  return apiFetch<UsuarioPublic>(`/api/v1/usuarios/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
-}
-
-export type Anuncio = {
-  id: string
-  titulo: string
-  cuerpo: string
-  departamento: string | null
-  fijado: boolean
-  expira_en: string | null
-  creado_en: string | null
-  autor_id?: string | null
-}
-
-export type AnuncioCreatePayload = {
-  titulo: string
-  cuerpo: string
-  departamento?: string | null
-  expira_en?: string | null
-}
-
-export async function listAnuncios(departamento?: string): Promise<Anuncio[]> {
-  const q = new URLSearchParams()
-  if (departamento) q.set('departamento', departamento)
-  const suffix = q.toString() ? `?${q.toString()}` : ''
-  return apiFetch<Anuncio[]>(`/api/v1/anuncios${suffix}`)
-}
-
-export async function createAnuncio(payload: AnuncioCreatePayload): Promise<Anuncio> {
-  return apiFetch<Anuncio>('/api/v1/anuncios', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
-export async function fijarAnuncio(id: string, fijado: boolean): Promise<Anuncio> {
-  return apiFetch<Anuncio>(`/api/v1/anuncios/${id}/fijar`, {
-    method: 'PATCH',
-    body: JSON.stringify({ fijado }),
-  })
-}
-
-export type TicketTipo = 'rmi' | 'rrss' | 'compras' | 'otro'
-export type TicketEstado = 'abierto' | 'en_proceso' | 'resuelto' | 'cerrado'
-
-export type Ticket = {
-  id: string
-  tipo: TicketTipo
-  estado: TicketEstado
-  titulo: string
-  descripcion: string | null
-  solicitante_id: string
-  asignado_id: string | null
-  creado_en: string | null
-}
-
-export type TicketCreatePayload = {
-  tipo: TicketTipo
-  titulo: string
-  descripcion?: string | null
-}
-
-export type TicketPatchPayload = {
-  estado?: TicketEstado
-  asignado_id?: string | null
-}
-
-export type TicketComentario = {
-  id: string
-  autor_id: string
-  cuerpo: string
-  creado_en: string
-  ticket_id?: string | null
-}
-
-export async function listTickets(params: {
-  tipo?: TicketTipo
-  estado?: TicketEstado
-} = {}): Promise<Ticket[]> {
-  const q = new URLSearchParams()
-  if (params.tipo) q.set('tipo', params.tipo)
-  if (params.estado) q.set('estado', params.estado)
-  const suffix = q.toString() ? `?${q.toString()}` : ''
-  return apiFetch<Ticket[]>(`/api/v1/tickets${suffix}`)
-}
-
-export async function createTicket(payload: TicketCreatePayload): Promise<Ticket> {
-  return apiFetch<Ticket>('/api/v1/tickets', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
-export async function patchTicket(id: string, payload: TicketPatchPayload): Promise<Ticket> {
-  return apiFetch<Ticket>(`/api/v1/tickets/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
-}
-
-export async function listTicketComentarios(id: string): Promise<TicketComentario[]> {
-  return apiFetch<TicketComentario[]>(`/api/v1/tickets/${id}/comentarios`)
-}
-
-export async function createTicketComentario(
-  id: string,
-  cuerpo: string,
-): Promise<TicketComentario> {
-  return apiFetch<TicketComentario>(`/api/v1/tickets/${id}/comentarios`, {
-    method: 'POST',
-    body: JSON.stringify({ cuerpo }),
-  })
-}
-
-export async function logout(): Promise<void> {
-  try {
-    await apiFetch('/api/v1/auth/logout', { method: 'POST' })
-  } finally {
-    setAccessToken(null)
+/** Petición con Bearer, refresh automático ante 401 y errores de la API como ApiError. */
+async function apiRaw(path: string, options: ApiOptions = {}): Promise<Response> {
+  const { skipAuth, ...init } = options
+  const headers = new Headers(init.headers)
+  if (!skipAuth) {
+    const token = getAccessToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
   }
+  if (init.body && typeof init.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  const send = () => fetch(`${API_BASE}${path}`, { ...init, headers, credentials: 'include' })
+
+  let res: Response
+  try {
+    res = await send()
+  } catch {
+    throw new ApiError(0, 'No se puede conectar con el servidor. Comprueba que el backend está en marcha.')
+  }
+
+  // Si el access caducó, intenta renovar una vez con la cookie refresh.
+  if (res.status === 401 && !skipAuth) {
+    const ok = await tryRefresh()
+    if (ok) {
+      const token = getAccessToken()
+      if (token) headers.set('Authorization', `Bearer ${token}`)
+      res = await send()
+    }
+  }
+
+  if (!res.ok) {
+    let message = MENSAJES_ESTADO[res.status] ?? `Error ${res.status}`
+    try {
+      const err = (await res.json()) as { detail?: unknown }
+      if (err.detail) message = detailToMessage(err.detail, message)
+    } catch {
+      /* cuerpo no JSON */
+    }
+    throw new ApiError(res.status, message)
+  }
+  return res
+}
+
+/** Construye `?a=1&b=2` ignorando valores vacíos. */
+export function query(params: Record<string, string | number | boolean | null | undefined>): string {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue
+    q.set(k, String(v))
+  }
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
+export function errorMessage(err: unknown, fallback = 'Ha ocurrido un error inesperado'): string {
+  return err instanceof Error && err.message ? err.message : fallback
 }

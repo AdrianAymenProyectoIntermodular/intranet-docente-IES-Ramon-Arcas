@@ -9,8 +9,10 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
 from app.models.fem import FemAlumno, FemHorasPatch, doc_to_fem_alumno
+from app.services.nombres import con_nombre, con_nombres
 
 COLLECTION = "fem_alumnos"
+NOMBRES = {"tutor_id": "tutor_nombre"}
 
 
 async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
@@ -39,7 +41,7 @@ async def list_alumnos(
     if estado:
         query["estado"] = estado
     cursor = db[COLLECTION].find(query).sort("nombre", 1)
-    return [doc_to_fem_alumno(doc) async for doc in cursor]
+    return await con_nombres(db, [doc_to_fem_alumno(doc) async for doc in cursor], NOMBRES)
 
 
 async def patch_horas(
@@ -68,7 +70,7 @@ async def patch_horas(
     )
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alumno FEM no encontrado")
-    return doc_to_fem_alumno(result)
+    return await con_nombre(db, doc_to_fem_alumno(result), NOMBRES)
 
 
 async def seed_alumno_demo(

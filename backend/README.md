@@ -4,8 +4,22 @@ API REST de la Intranet Docente.
 
 ## Módulos con runtime
 
-Auth, usuarios (RGPD), anuncios, tickets, FEM, dashboard, auditoría y health.  
-Contrato sin implementar aún: guardias, ausencias, retrasos, notificaciones.
+Auth, usuarios (RGPD), anuncios, tickets, FEM, dashboard, auditoría, alumnado + retrasos y health.  
+Contrato sin implementar aún: guardias, ausencias, notificaciones.
+
+## Datos de demostración (solo desarrollo)
+
+Carga datos **ficticios** (docentes con distintos roles, horarios, anuncios, tickets, alumnado FEM,
+alumnado y retrasos) y activa tu cuenta Google como `admin` + `docente` + `tutor`:
+
+```bash
+# Con Docker Compose levantado (raíz del repo)
+docker compose exec backend python -m scripts.seed_demo --admin-email tu@correo.com
+```
+
+- Solo se ejecuta con `ENVIRONMENT=development`.
+- Idempotente: borra y reinserta únicamente los documentos marcados `seed: true` (tu cuenta no se borra).
+- Si tu cuenta aún no existe, se crea como alta manual; al entrar con Google se vincula por email.
 
 ## Arranque local (API en el host)
 

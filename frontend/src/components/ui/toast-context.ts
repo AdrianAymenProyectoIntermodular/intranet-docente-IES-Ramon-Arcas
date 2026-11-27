@@ -1,0 +1,17 @@
+import { createContext, useContext } from 'react'
+
+export type ToastTone = 'ok' | 'error' | 'info'
+
+export type ToastApi = {
+  show: (message: string, tone?: ToastTone) => void
+  ok: (message: string) => void
+  error: (message: string) => void
+}
+
+export const ToastContext = createContext<ToastApi | null>(null)
+
+export function useToast(): ToastApi {
+  const ctx = useContext(ToastContext)
+  if (!ctx) throw new Error('useToast debe usarse dentro de <ToastProvider>')
+  return ctx
+}
