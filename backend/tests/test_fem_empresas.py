@@ -138,3 +138,23 @@ async def test_permisos(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) ->
     assert (
         await client.post("/api/v1/fem/empresas", headers=docente, json={**EMPRESA, "extra": 1})
     ).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_estado_fem_es_un_valor_cerrado(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El estado del seguimiento es pendiente / activo / finalizado; un valor desconocido no rompe el listado."""
+    await get_db()["fem_alumnos"].insert_many(
+        [
+            {"nombre": "Ana", "estado": "activo", "horas_cursadas": 100},
+            {"nombre": "Beto", "estado": "finalizado", "horas_cursadas": 500},
+            {"nombre": "Clara", "estado": "de baja"},
+        ]
+    )
+    admin = await _activate(client, monkeypatch, "a@x.com", [Role.admin])
+
+    todos = {a["nombre"]: a["estado"] for a in (await client.get("/api/v1/fem/alumnos", headers=admin)).json()}
+    assert todos == {"Ana": "activo", "Beto": "finalizado", "Clara": None}
+
+    activos = await client.get("/api/v1/fem/alumnos", headers=admin, params={"estado": "activo"})
+    assert [a["nombre"] for a in activos.json()] == ["Ana"]
+    assert (await client.get("/api/v1/fem/alumnos", headers=admin, params={"estado": "de baja"})).status_code == 422

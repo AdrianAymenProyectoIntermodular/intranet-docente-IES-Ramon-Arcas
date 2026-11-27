@@ -14,6 +14,7 @@ import type {
   Emplazamiento,
   EmplazamientoPayload,
   FemAlumno,
+  FemEstado,
   FemEmpresa,
   FemEmpresaPayload,
   Paginated,
@@ -85,7 +86,7 @@ export function borrarAdjunto(ticketId: string, adjuntoId: string): Promise<void
 }
 
 /* FEM */
-export function listFemAlumnos(estado?: string): Promise<FemAlumno[]> {
+export function listFemAlumnos(estado?: FemEstado): Promise<FemAlumno[]> {
   return apiFetch<FemAlumno[]>(`/api/v1/fem/alumnos${query({ estado })}`)
 }
 

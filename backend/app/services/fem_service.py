@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import ReturnDocument
 
-from app.models.fem import FemAlumno, FemHorasPatch, doc_to_fem_alumno
+from app.models.fem import FemAlumno, FemEstado, FemHorasPatch, doc_to_fem_alumno
 from app.services.nombres import con_nombre, con_nombres
 
 COLLECTION = "fem_alumnos"
@@ -31,7 +31,7 @@ async def list_alumnos(
     *,
     tutor_id: str | None,
     is_admin: bool,
-    estado: str | None,
+    estado: FemEstado | None,
 ) -> list[FemAlumno]:
     query: dict[str, Any] = {}
     if not is_admin:
@@ -39,7 +39,7 @@ async def list_alumnos(
             return []
         query["tutor_id"] = tutor_id
     if estado:
-        query["estado"] = estado
+        query["estado"] = estado.value
     cursor = db[COLLECTION].find(query).sort("nombre", 1)
     return await con_nombres(db, [doc_to_fem_alumno(doc) async for doc in cursor], NOMBRES)
 
@@ -86,7 +86,7 @@ async def seed_alumno_demo(
     doc = {
         "nombre": nombre,
         "empresa": empresa,
-        "estado": "activo",
+        "estado": FemEstado.activo.value,
         "horas_cursadas": 0,
         "horas_totales": 500,
         "tutor_id": tutor_id,

@@ -20,6 +20,7 @@ from app.models.dashboard import (
 )
 from app.models.usuario import UsuarioPublic
 from app.services.retraso_service import curso_escolar_de
+from app.models.fem import FemEstado
 from app.models.ticket import TicketEstado, TicketTipo
 from app.models.usuario import UsuarioEstado
 
@@ -38,7 +39,7 @@ async def get_kpis(db: AsyncIOMotorDatabase) -> DashboardKpis:
     docentes_activos = await db["usuarios"].count_documents(
         {"estado": UsuarioEstado.activo.value}
     )
-    alumnos_fem_activos = await db["fem_alumnos"].count_documents({"estado": "activo"})
+    alumnos_fem_activos = await db["fem_alumnos"].count_documents({"estado": FemEstado.activo.value})
 
     return DashboardKpis(
         ausencias_hoy=ausencias_hoy,

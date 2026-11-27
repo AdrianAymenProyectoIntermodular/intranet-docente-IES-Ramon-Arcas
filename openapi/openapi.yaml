@@ -1241,7 +1241,7 @@ paths:
           in: query
           required: false
           schema:
-            type: string
+            $ref: '#/components/schemas/FemEstado'
       responses:
         '200':
           description: Lista de alumnos FEM
@@ -2786,7 +2786,9 @@ components:
         empresa:
           type: string
         estado:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/FemEstado'
+          nullable: true
         horas_cursadas:
           type: number
           minimum: 0
@@ -2892,6 +2894,13 @@ components:
         porcentaje:
           type: number
           example: 66.7
+
+    FemEstado:
+      type: string
+      enum: [pendiente, activo, finalizado]
+      description: |
+        Estado del seguimiento FEM: `pendiente` (sin empezar), `activo` (en prácticas),
+        `finalizado` (FEM completada).
 
     DashboardFem:
       type: object

@@ -149,13 +149,15 @@ export type Comentario = {
   autor_nombre?: string | null
 }
 
+export type FemEstado = 'pendiente' | 'activo' | 'finalizado'
+
 export type FemAlumno = {
   id: string
   nombre: string
   empresa: string | null
   empresa_id?: string | null
   ciclo?: string | null
-  estado: string | null
+  estado: FemEstado | null
   horas_cursadas: number
   horas_totales: number
   tutor_id: string | null

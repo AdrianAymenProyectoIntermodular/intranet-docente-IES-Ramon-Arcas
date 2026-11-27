@@ -1,8 +1,17 @@
 """Esquemas FEM (Formación en Empresas Murcia): alumnado en prácticas y empresas colaboradoras."""
 
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class FemEstado(str, Enum):
+    """Estado del seguimiento de la FEM de un alumno."""
+
+    pendiente = "pendiente"  # aún no ha empezado las prácticas
+    activo = "activo"  # en prácticas
+    finalizado = "finalizado"  # ha completado la FEM
 
 
 class FemAlumno(BaseModel):
@@ -11,7 +20,7 @@ class FemAlumno(BaseModel):
     empresa: str | None = None
     empresa_id: str | None = None
     ciclo: str | None = None
-    estado: str | None = None
+    estado: FemEstado | None = None
     horas_cursadas: float = 0
     horas_totales: float = 500
     tutor_id: str | None = None
@@ -63,7 +72,8 @@ def doc_to_fem_alumno(doc: dict[str, Any]) -> FemAlumno:
         empresa=doc.get("empresa"),
         empresa_id=doc.get("empresa_id"),
         ciclo=doc.get("ciclo"),
-        estado=doc.get("estado"),
+        # Valores antiguos o desconocidos se muestran como "sin estado" en lugar de romper el listado.
+        estado=FemEstado(doc["estado"]) if doc.get("estado") in FemEstado._value2member_map_ else None,
         horas_cursadas=float(doc.get("horas_cursadas", 0)),
         horas_totales=float(doc.get("horas_totales", 500)),
         tutor_id=doc.get("tutor_id"),

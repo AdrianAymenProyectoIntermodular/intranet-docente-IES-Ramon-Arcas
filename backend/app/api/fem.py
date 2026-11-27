@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from app.core.database import get_db
 from app.core.deps import require_roles
-from app.models.fem import Empresa, EmpresaCreate, EmpresaPatch, FemAlumno, FemHorasPatch
+from app.models.fem import Empresa, EmpresaCreate, EmpresaPatch, FemAlumno, FemEstado, FemHorasPatch
 from app.models.usuario import UsuarioPublic
 from app.services import auditoria_service, fem_empresa_service, fem_service
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/fem", tags=["FEM"])
 @router.get("/alumnos", response_model=list[FemAlumno])
 async def list_fem_alumnos(
     current: Annotated[UsuarioPublic, Depends(require_roles("tutor", "admin"))],
-    estado: str | None = None,
+    estado: FemEstado | None = None,
 ) -> list[FemAlumno]:
     """Alumnado asignado al tutor (admin ve todos)."""
     is_admin = "admin" in current.roles
