@@ -1,5 +1,6 @@
 """Autenticación Google + emisión de tokens."""
 
+import logging
 from typing import Any
 
 from fastapi import HTTPException, Response, status
@@ -17,6 +18,12 @@ from app.core.security import (
 )
 from app.models.usuario import AccessTokenResponse, UsuarioEstado, UsuarioPublic, doc_to_usuario
 from app.services import auditoria_service, usuario_service
+
+logger = logging.getLogger(__name__)
+
+# Tolerancia ante relojes ligeramente desincronizados (equipos del centro, VM de Docker).
+# Sin ella, un reloj unos segundos atrasado rechaza tokens recién emitidos ("Token used too early").
+GOOGLE_CLOCK_SKEW_SECONDS = 30
 
 REFRESH_PREFIX = "refresh:"
 
@@ -54,8 +61,11 @@ def verify_google_id_token(token: str) -> dict[str, Any]:
             token,
             google_requests.Request(),
             settings.google_client_id,
+            clock_skew_in_seconds=GOOGLE_CLOCK_SKEW_SECONDS,
         )
     except ValueError as exc:
+        # El motivo (audiencia, caducidad, reloj, firma) solo va al log del servidor, nunca al cliente.
+        logger.warning("id_token de Google rechazado: %s", exc)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="id_token inválido") from exc
 
 
