@@ -15,7 +15,7 @@ PWA de gestión interna para profesorado y equipo directivo. Forma parte del Pro
 
 Base ejecutable (auth/usuarios + módulos Aymen + cierre de sesión Google + auditoría):
 
-- Backend FastAPI: health, auth Google + JWT + refresh HttpOnly (Redis), usuarios (+ RGPD), anuncios, tickets, FEM, dashboard, **auditoría**, **alumnado + retrasos** (consultas auditadas)
+- Backend FastAPI: health, auth Google + JWT + refresh HttpOnly (Redis), usuarios (+ RGPD), anuncios, tickets (+ adjuntos y borrador RRSS con generador mock), FEM (alumnado, horas, empresas geocodificadas), dashboard (KPIs FEM 5 y 6), **auditoría**, **alumnado + retrasos** (consultas auditadas), **emplazamiento en el aula**
 - Frontend PWA (React + Vite + TS, react-router, Lucide): navegación lateral en escritorio y barra inferior en móvil; Inicio ("Tu día"), tablón, solicitudes RMI/compras/RRSS, horario semanal, retrasos, FEM, indicadores de dirección, auditoría, usuarios y roles, perfil/RGPD y primeros pasos. Sin mocks: todo viene del backend; los módulos sin API aparecen como "Pronto".
 - Docker Compose: MongoDB, Redis, backend (healthchecks + red `intranet`)
 - Datos de demostración ficticios: `docker compose exec backend python -m scripts.seed_demo --admin-email tu@correo`
@@ -26,7 +26,7 @@ Base ejecutable (auth/usuarios + módulos Aymen + cierre de sesión Google + aud
 
 ### Fuera de contrato aún (fases posteriores)
 
-Emplazamiento aula, convivencia, comparador de horarios, repositorio documental, reservas, comisiones, onboarding de contenido, mapa FEM, IA RRSS, Google Calendar. Ver [docs/architecture.md](docs/architecture.md) (temporalización) y [docs/api-contract.md](docs/api-contract.md).
+Convivencia, comparador de horarios, repositorio documental, reservas, comisiones, proveedor real de IA para RRSS, Google Calendar. Ver [docs/architecture.md](docs/architecture.md) (temporalización) y [docs/api-contract.md](docs/api-contract.md).
 
 ## Arranque rápido
 
@@ -94,11 +94,12 @@ Compose espera a que Mongo y Redis estén healthy antes de arrancar el backend. 
 | Documento | Contenido |
 |-----------|-----------|
 | [AGENTS.md](AGENTS.md) | Contexto permanente para agentes / Cursor |
+| [docs/memoria-proyecto.md](docs/memoria-proyecto.md) | Requisitos funcionales de la memoria (apartado 5) y notas del equipo |
 | [docs/architecture.md](docs/architecture.md) | Stack, capas, fases / temporalización |
 | [docs/api-contract.md](docs/api-contract.md) | Tabla oficial de endpoints |
 | [docs/roles-and-permissions.md](docs/roles-and-permissions.md) | Roles y permisos |
 | [docs/verification-cimientos.md](docs/verification-cimientos.md) | Checklist health + auth + `/auth/me` |
-| [docs/fase-2-reparto.md](docs/fase-2-reparto.md) | Dueños Fase 2 (Aymen / Adrian) |
+| [docs/fase-2-reparto.md](docs/fase-2-reparto.md) | Dueños y estado de la Fase 2 (Aymen / Adrian) |
 | [openapi/openapi.yaml](openapi/openapi.yaml) | Contrato OpenAPI |
 | [backend/README.md](backend/README.md) | Arranque API, auth, tests |
 | [frontend/README.md](frontend/README.md) | Arranque PWA y sesión |

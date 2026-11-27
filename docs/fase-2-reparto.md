@@ -1,6 +1,6 @@
 # Fase 2 — reparto equitativo (Intranet)
 
-Acuerdo operativo entre **Adrian** y **Aymen**. Misma carga funcional, no mismo número de líneas. Un feature = una rama corta / un PR (dueño + revisor).
+Acuerdo operativo entre **Adrian** y **Aymen**. Requisitos de cada bloque: [memoria-proyecto.md](memoria-proyecto.md) (apartado 5). Misma carga funcional, no mismo número de líneas. Un feature = una rama corta / un PR (dueño + revisor).
 
 ## Cimientos (cerrados antes de Fase 2)
 
@@ -39,7 +39,31 @@ Acuerdo operativo entre **Adrian** y **Aymen**. Misma carga funcional, no mismo 
 | Pieza | Estado | Rama |
 |-------|--------|------|
 | Backend auditoría (filtros fecha, eventos auth, antes/después, tests) | Hecho en `feature/auditoria-roles` | `feature/auditoria-roles` |
-| UI consulta auditoría (React) | Pendiente | Rama aparte tras merge del backend |
+| UI consulta auditoría (React) | Hecho (`AuditoriaPage`) | — |
+
+## Estado de los entregables (rama `feature/kpi-fem-direccion`, 2026-11-27)
+
+| Entregable memoria 5.14 | Estado |
+|-------------------------|--------|
+| Tablón de anuncios | Hecho salvo segmentación por **curso** (solo general / departamento) |
+| Seguimiento FEM | Hecho: listado por tutor, horas / 500, empresas, mapa Leaflet + Nominatim |
+| Publicaciones RRSS (borrador IA) | Hecho con generador **mock** (`plantilla`) acordado; proveedor real PENDIENTE DE DECISIÓN |
+| Gestión de retrasos | Hecho (alta + histórico, sin stats al docente) |
+| Emplazamiento en el aula | Hecho |
+| Roles y permisos (capa completa) | Hecho con huecos (ver abajo) |
+| Primeros pasos | Guía hecha; revisar enlaces de vídeos |
+| Incidencias RMI / Compras | Hechas sobre la entidad ticket (email al responsable → Fase 4) |
+| Dashboard (extra) | KPIs 5 y 6 hechos; KPI 7 parcial; KPI 3 pendiente |
+
+## Pendiente para cerrar la Fase 2
+
+1. **Visibilidad de tickets:** `GET /api/v1/tickets` devuelve todas las solicitudes a cualquier usuario activo; debe filtrar por solicitante, asignado o competencia (admin/directiva ven todo).
+2. **Auditoría incompleta:** sin trazas en anuncios (crear/fijar), emplazamientos (CRUD) y parte de empresas FEM.
+3. **Anuncios por curso:** añadir `curso` opcional y filtrarlo en el feed.
+4. **KPI 7:** desglose por `datos.departamento` (ya existe en tickets RRSS) y porcentaje publicado.
+5. **KPI 3:** agregación de retrasos por grupo/módulo + **umbral configurable por dirección** (nunca fijo en código).
+6. **CI básica:** no existe workflow (pytest + build/lint del frontend).
+7. Menores: estado FEM como enum, vídeos de la guía, documentar equivalencia de estados de ticket (hecho en memoria-proyecto.md).
 
 ## Fuera de Fase 2 (no abrir aún)
 

@@ -102,12 +102,12 @@ Endpoints operativos (fuera del contrato de negocio):
 
 ## Temporalización (fases)
 
-Alineada a la memoria del proyecto (apartado 5.14) y al estado del repositorio:
+Alineada a la memoria del proyecto ([memoria-proyecto.md](memoria-proyecto.md), apartado 5.14) y al estado del repositorio:
 
 | Fase | Contenido memoria | Estado en este repo |
 |------|-------------------|---------------------|
 | **1 — Cimientos** | Esquema / temporalización; auth básica; núcleo de roles | **Hecho.** OpenAPI + docs, Google OAuth + JWT/Redis, roles, Docker Compose, PWA mínima |
-| **2 — Núcleo funcional** | Anuncios, FEM, RRSS/IA, retrasos, aula, roles completos, onboarding, RMI/compras | **Parcial.** Runtime + UI: anuncios, tickets (RMI/RRSS/compras), FEM (alumnos/horas), dashboard, retrasos (+ selector de alumnado), roles/auditoría, onboarding (guía). Pendiente: emplazamiento aula, IA RRSS, mapa FEM |
+| **2 — Núcleo funcional** | Anuncios, FEM, RRSS/IA, retrasos, aula, roles completos, onboarding, RMI/compras | **Casi completa.** Runtime + UI: anuncios, tickets (RMI/RRSS/compras + adjuntos), borrador RRSS (generador mock), FEM (alumnos/horas, empresas, mapa Leaflet), dashboard (KPIs 5 y 6), retrasos, emplazamiento en el aula, roles/auditoría (+ UI), onboarding (guía). Pendiente: ver [fase-2-reparto.md](fase-2-reparto.md#pendiente-para-cerrar-la-fase-2) |
 | **3 — Guardias y firma** | Guardias + ausencias/firma; convivencia; comisiones; módulo ticket restante | **Contrato definido** (guardias/ausencias/firma). Runtime: rama `Adrian-guardias-ausencias`. Convivencia / comisiones / reservas / docs: fuera de contrato aún |
 | **4 — Integraciones** | OAuth completo, Calendar, notificaciones push/email, docs técnicas | **Contrato** notificaciones + auditoría. Runtime y PWA instalable / Calendar: pendiente |
 

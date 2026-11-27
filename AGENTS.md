@@ -17,7 +17,7 @@ Existen **dos sistemas independientes**. Este repo es solo la intranet. La Web P
 
 Antes de modificar arquitectura, API, autenticación, persistencia o estructura de directorios:
 
-1. Revisar [docs/architecture.md](docs/architecture.md).
+1. Revisar [docs/memoria-proyecto.md](docs/memoria-proyecto.md) (requisitos funcionales de la memoria, apartado 5) y [docs/architecture.md](docs/architecture.md).
 2. Revisar [docs/api-contract.md](docs/api-contract.md) y [openapi/openapi.yaml](openapi/openapi.yaml) si el cambio afecta a endpoints.
 3. Revisar [docs/roles-and-permissions.md](docs/roles-and-permissions.md) si el cambio afecta a autorización.
 
