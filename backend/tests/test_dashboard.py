@@ -82,3 +82,91 @@ async def test_kpi_rrss_por_departamento(client: AsyncClient, monkeypatch: pytes
 async def test_kpi_rrss_solo_direccion(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     docente = await _activate(client, monkeypatch, "doc@x.com", [Role.docente])
     assert (await client.get("/api/v1/dashboard/rrss", headers=docente)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_umbral_retrasos_configurable(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """El umbral de "tasa alta" lo fija dirección; nunca es un valor fijo en código (memoria 5.11)."""
+    docente = await _activate(client, monkeypatch, "doc@x.com", [Role.docente])
+    directiva = await _activate(client, monkeypatch, "dir@x.com", [Role.directiva])
+
+    inicial = await client.get("/api/v1/dashboard/configuracion", headers=directiva)
+    assert inicial.status_code == 200
+    assert inicial.json()["umbral_retrasos"] == 5
+
+    cambio = await client.put("/api/v1/dashboard/configuracion", headers=directiva, json={"umbral_retrasos": 3})
+    assert cambio.status_code == 200
+    assert cambio.json()["umbral_retrasos"] == 3
+    assert cambio.json()["actualizado_por_nombre"] == "dir"
+    assert (await client.get("/api/v1/dashboard/configuracion", headers=directiva)).json()["umbral_retrasos"] == 3
+
+    traza = await get_db()["auditoria"].find_one({"accion": "dashboard.configuracion_put"})
+    assert traza["detalle"] == {"antes": {"umbral_retrasos": 5}, "despues": {"umbral_retrasos": 3}}
+
+    assert (await client.put("/api/v1/dashboard/configuracion", headers=directiva, json={"umbral_retrasos": 0})).status_code == 422
+    assert (await client.put("/api/v1/dashboard/configuracion", headers=docente, json={"umbral_retrasos": 9})).status_code == 403
+    assert (await client.get("/api/v1/dashboard/configuracion", headers=docente)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_kpi_retrasos_por_grupo_y_umbral(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    db = get_db()
+    res = await db["alumnos"].insert_many(
+        [
+            {"nombre": "Ana", "grupo": "1DAW", "curso": "1º DAW"},
+            {"nombre": "Beto", "grupo": "1DAW", "curso": "1º DAW"},
+            {"nombre": "Clara", "grupo": "2DAW", "curso": "2º DAW"},
+        ]
+    )
+    ana, beto, clara = (str(i) for i in res.inserted_ids)
+
+    def retraso(alumno: str, grupo: str, dia: int, modulo: str, curso: str = "2026/2027") -> dict[str, Any]:
+        return {
+            "alumno_id": alumno,
+            "grupo": grupo,
+            "fecha": f"2026-10-{dia:02d}",
+            "hora": "08:10",
+            "modulo": modulo,
+            "curso_escolar": curso,
+            "registrado_por_id": "u",
+        }
+
+    await db["retrasos"].insert_many(
+        [
+            retraso(ana, "1DAW", 1, "Programación"),
+            retraso(ana, "1DAW", 2, "Programación"),
+            retraso(ana, "1DAW", 3, "Bases de Datos"),
+            retraso(beto, "1DAW", 1, "Programación"),
+            retraso(clara, "2DAW", 1, "DWES"),
+            retraso(clara, "2DAW", 2, "DWES"),
+            retraso(clara, "2DAW", 3, "DWES", curso="2025/2026"),  # otro curso escolar: no cuenta
+        ]
+    )
+    directiva = await _activate(client, monkeypatch, "dir@x.com", [Role.directiva])
+    await client.put("/api/v1/dashboard/configuracion", headers=directiva, json={"umbral_retrasos": 2})
+
+    res = await client.get("/api/v1/dashboard/retrasos", headers=directiva, params={"curso_escolar": "2026/2027"})
+    assert res.status_code == 200
+    body = res.json()
+    assert (body["curso_escolar"], body["umbral"], body["total"]) == ("2026/2027", 2, 6)
+    assert body["por_grupo"] == [
+        {"grupo": "1DAW", "retrasos": 4, "alumnos_con_retrasos": 2, "alumnos_sobre_umbral": 1},
+        {"grupo": "2DAW", "retrasos": 2, "alumnos_con_retrasos": 1, "alumnos_sobre_umbral": 1},
+    ]
+    assert body["por_modulo"][0] == {"modulo": "Programación", "retrasos": 3}
+    assert body["alumnado_sobre_umbral"] == [
+        {"alumno_id": ana, "nombre": "Ana", "grupo": "1DAW", "retrasos": 3},
+        {"alumno_id": clara, "nombre": "Clara", "grupo": "2DAW", "retrasos": 2},
+    ]
+
+    # Subir el umbral recalcula quién lo supera, sin tocar los datos.
+    await client.put("/api/v1/dashboard/configuracion", headers=directiva, json={"umbral_retrasos": 3})
+    otra = (await client.get("/api/v1/dashboard/retrasos", headers=directiva, params={"curso_escolar": "2026/2027"})).json()
+    assert [a["nombre"] for a in otra["alumnado_sobre_umbral"]] == ["Ana"]
+
+
+@pytest.mark.asyncio
+async def test_kpi_retrasos_no_visible_para_docente(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Las estadísticas de retrasos son exclusivas de dirección (memoria 5.3.2)."""
+    docente = await _activate(client, monkeypatch, "doc@x.com", [Role.docente])
+    assert (await client.get("/api/v1/dashboard/retrasos", headers=docente)).status_code == 403

@@ -1,5 +1,7 @@
 import { CircleCheck, CircleDashed, CircleDot, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useState } from 'react'
+import { RetrasosPanel } from './direccion/RetrasosPanel'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Button } from '../components/ui/Button'
 import { ErrorState, ProgressBar, Skeleton } from '../components/ui/Feedback'
@@ -23,8 +25,8 @@ const INDICADORES: { nombre: string; estado: EstadoKpi; nota: string }[] = [
   { nombre: 'Rendimiento académico por grupo', estado: 'pendiente', nota: 'Requiere calificaciones.' },
   {
     nombre: 'Retrasos por grupo y alumnado sobre el umbral',
-    estado: 'pendiente',
-    nota: 'Los retrasos ya se registran; falta la agregación y el umbral configurable por dirección.',
+    estado: 'disponible',
+    nota: 'Umbral de tasa alta configurable por dirección en el propio panel.',
   },
   { nombre: 'Ausencias del profesorado', estado: 'pendiente', nota: 'Llega con el módulo de ausencias (Fase 3).' },
   {
@@ -47,12 +49,14 @@ export function DireccionPage() {
   const tickets = useApi(() => listTickets())
   const fem = useApi(fetchDashboardFem)
   const rrss = useApi(fetchDashboardRrss)
+  const [recarga, setRecarga] = useState(0)
 
   const recargar = () => {
     void kpis.reload()
     void tickets.reload()
     void fem.reload()
     void rrss.reload()
+    setRecarga((n) => n + 1)
   }
 
   return (
@@ -120,6 +124,8 @@ export function DireccionPage() {
           </div>
         </Panel>
       </div>
+
+      <RetrasosPanel recarga={recarga} />
 
       <Panel
         title="Empresas FEM activas"

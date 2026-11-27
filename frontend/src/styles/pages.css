@@ -983,6 +983,17 @@
   font-size: 0.875rem;
 }
 
+/* ───────────── Dirección: umbral de retrasos ───────────── */
+.umbral-form {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.umbral-form .field {
+  flex: 0 1 22rem;
+}
+
 /* ───────────── Módulo en desarrollo ───────────── */
 .en-desarrollo {
   display: flex;

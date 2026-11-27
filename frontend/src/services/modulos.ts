@@ -9,6 +9,8 @@ import type {
   DashboardFem,
   DashboardKpis,
   DashboardRrss,
+  DashboardRetrasos,
+  ConfiguracionDashboard,
   Emplazamiento,
   EmplazamientoPayload,
   FemAlumno,
@@ -105,6 +107,21 @@ export function fetchDashboardFem(): Promise<DashboardFem> {
 
 export function fetchDashboardRrss(): Promise<DashboardRrss> {
   return apiFetch<DashboardRrss>('/api/v1/dashboard/rrss')
+}
+
+export function fetchDashboardRetrasos(): Promise<DashboardRetrasos> {
+  return apiFetch<DashboardRetrasos>('/api/v1/dashboard/retrasos')
+}
+
+export function fetchConfiguracionDashboard(): Promise<ConfiguracionDashboard> {
+  return apiFetch<ConfiguracionDashboard>('/api/v1/dashboard/configuracion')
+}
+
+export function putConfiguracionDashboard(umbral_retrasos: number): Promise<ConfiguracionDashboard> {
+  return apiFetch<ConfiguracionDashboard>('/api/v1/dashboard/configuracion', {
+    method: 'PUT',
+    body: JSON.stringify({ umbral_retrasos }),
+  })
 }
 
 /* Auditoría */

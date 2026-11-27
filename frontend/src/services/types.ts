@@ -186,6 +186,21 @@ export type DashboardRrss = {
   por_departamento: PublicacionesDepartamento[]
 }
 
+export type ConfiguracionDashboard = {
+  umbral_retrasos: number
+  actualizado_en?: string | null
+  actualizado_por_nombre?: string | null
+}
+
+export type DashboardRetrasos = {
+  curso_escolar: string
+  umbral: number
+  total: number
+  por_grupo: { grupo: string; retrasos: number; alumnos_con_retrasos: number; alumnos_sobre_umbral: number }[]
+  por_modulo: { modulo: string; retrasos: number }[]
+  alumnado_sobre_umbral: { alumno_id: string; nombre: string; grupo: string; retrasos: number }[]
+}
+
 export type DashboardFem = {
   empresas_total: number
   empresas_activas: number

@@ -208,6 +208,9 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 |--------|----------|------|-------|-------------|
 | GET | `/api/v1/dashboard/kpis` | Auth | `directiva`, `admin` | Indicadores del centro |
 | GET | `/api/v1/dashboard/fem` | Auth | `directiva`, `admin` | KPI 5 (empresas activas por municipio y ciclo) y KPI 6 (horas sobre las previstas) |
+| GET | `/api/v1/dashboard/retrasos` | Auth | `directiva`, `admin` | KPI 3 (retrasos por grupo y módulo; alumnado sobre el umbral). `?curso_escolar=` (por defecto, el actual) |
+| GET | `/api/v1/dashboard/configuracion` | Auth | `directiva`, `admin` | Umbral de tasa alta de retrasos |
+| PUT | `/api/v1/dashboard/configuracion` | Auth | `directiva`, `admin` | Cambiar el umbral (`1`–`100`); auditado con antes/después |
 | GET | `/api/v1/dashboard/rrss` | Auth | `directiva`, `admin` | KPI 7 (publicaciones RRSS por departamento y % publicado: `resuelto` o `cerrado`) |
 
 ## Retrasos
@@ -268,6 +271,7 @@ Acciones runtime por módulo:
 | Retrasos | `retrasos.create`, `retrasos.consulta_historico` |
 | Emplazamientos | `emplazamientos.create`, `emplazamientos.update`, `emplazamientos.delete` |
 | FEM | `fem.horas_patch`, `fem.empresa_create`, `fem.empresa_patch`, `fem.empresa_geocodificar` |
+| Dashboard | `dashboard.configuracion_put` |
 
 En `usuarios.patch` / `usuarios.put_roles` y `tickets.patch` el `detalle` incluye `antes` y `despues`; en `fem.horas_patch`, las horas antes y después.
 Las mutaciones exigen persistir la traza (503 si falla Mongo); login/logout y la geocodificación usan best-effort con log.

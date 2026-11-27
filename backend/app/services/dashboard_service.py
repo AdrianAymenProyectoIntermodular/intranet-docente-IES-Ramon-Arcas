@@ -1,17 +1,25 @@
 """Servicio de KPIs del dashboard."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.models.dashboard import (
+    AlumnoSobreUmbral,
+    ConfiguracionDashboard,
     DashboardFem,
     DashboardKpis,
+    DashboardRetrasos,
     DashboardRrss,
     HorasFem,
     ProporcionActivas,
     PublicacionesDepartamento,
+    RetrasosGrupo,
+    RetrasosModulo,
 )
+from app.models.usuario import UsuarioPublic
+from app.services.retraso_service import curso_escolar_de
 from app.models.ticket import TicketEstado, TicketTipo
 from app.models.usuario import UsuarioEstado
 
@@ -53,6 +61,98 @@ def _proporciones(datos: dict[str, list[int]]) -> list[ProporcionActivas]:
             for k, (t, a) in datos.items()
         ),
         key=lambda p: (-p.total, p.nombre),
+    )
+
+
+CONFIGURACION = "configuracion"
+CONFIG_ID = "dashboard"
+# Valor inicial hasta que dirección lo cambie; el umbral vigente siempre se lee de Mongo.
+UMBRAL_RETRASOS_INICIAL = 5
+
+
+async def get_configuracion(db: AsyncIOMotorDatabase) -> ConfiguracionDashboard:
+    doc = await db[CONFIGURACION].find_one({"_id": CONFIG_ID}) or {}
+    return ConfiguracionDashboard(
+        umbral_retrasos=int(doc.get("umbral_retrasos", UMBRAL_RETRASOS_INICIAL)),
+        actualizado_en=doc.get("actualizado_en"),
+        actualizado_por_nombre=doc.get("actualizado_por_nombre"),
+    )
+
+
+async def put_configuracion(
+    db: AsyncIOMotorDatabase, *, umbral_retrasos: int, usuario: UsuarioPublic
+) -> tuple[ConfiguracionDashboard, ConfiguracionDashboard]:
+    """Guarda la configuración y devuelve (antes, después) para la auditoría."""
+    antes = await get_configuracion(db)
+    await db[CONFIGURACION].update_one(
+        {"_id": CONFIG_ID},
+        {
+            "$set": {
+                "umbral_retrasos": umbral_retrasos,
+                "actualizado_en": datetime.now(UTC),
+                "actualizado_por_id": usuario.id,
+                "actualizado_por_nombre": usuario.name,
+            }
+        },
+        upsert=True,
+    )
+    return antes, await get_configuracion(db)
+
+
+async def get_retrasos(db: AsyncIOMotorDatabase, *, curso_escolar: str | None = None) -> DashboardRetrasos:
+    """KPI 3: retrasos del curso escolar por grupo y módulo y alumnado que alcanza el umbral."""
+    curso = curso_escolar or curso_escolar_de(date.today())
+    umbral = (await get_configuracion(db)).umbral_retrasos
+    filtro = {"curso_escolar": curso}
+
+    por_alumno = await db["retrasos"].aggregate(
+        [
+            {"$match": filtro},
+            {"$group": {"_id": "$alumno_id", "retrasos": {"$sum": 1}, "grupo": {"$first": "$grupo"}}},
+        ]
+    ).to_list(None)
+    por_modulo = await db["retrasos"].aggregate(
+        [
+            {"$match": filtro},
+            {"$group": {"_id": "$modulo", "retrasos": {"$sum": 1}}},
+            {"$sort": {"retrasos": -1, "_id": 1}},
+        ]
+    ).to_list(None)
+
+    grupos: dict[str, RetrasosGrupo] = {}
+    sobre_umbral = [a for a in por_alumno if a["retrasos"] >= umbral]
+    for a in por_alumno:
+        nombre_grupo = a.get("grupo") or "Sin grupo"
+        g = grupos.setdefault(
+            nombre_grupo,
+            RetrasosGrupo(grupo=nombre_grupo, retrasos=0, alumnos_con_retrasos=0, alumnos_sobre_umbral=0),
+        )
+        g.retrasos += a["retrasos"]
+        g.alumnos_con_retrasos += 1
+        g.alumnos_sobre_umbral += 1 if a["retrasos"] >= umbral else 0
+
+    ids = [ObjectId(a["_id"]) for a in sobre_umbral if ObjectId.is_valid(a["_id"])]
+    nombres = {str(d["_id"]): d.get("nombre", "") async for d in db["alumnos"].find({"_id": {"$in": ids}}, {"nombre": 1})}
+    alumnado = sorted(
+        (
+            AlumnoSobreUmbral(
+                alumno_id=a["_id"],
+                nombre=nombres.get(a["_id"], "Alumno desconocido"),
+                grupo=a.get("grupo") or "Sin grupo",
+                retrasos=a["retrasos"],
+            )
+            for a in sobre_umbral
+        ),
+        key=lambda x: (-x.retrasos, x.nombre),
+    )
+
+    return DashboardRetrasos(
+        curso_escolar=curso,
+        umbral=umbral,
+        total=sum(a["retrasos"] for a in por_alumno),
+        por_grupo=sorted(grupos.values(), key=lambda g: (-g.retrasos, g.grupo)),
+        por_modulo=[RetrasosModulo(modulo=m["_id"] or "Sin módulo", retrasos=m["retrasos"]) for m in por_modulo],
+        alumnado_sobre_umbral=alumnado,
     )
 
 

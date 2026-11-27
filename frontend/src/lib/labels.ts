@@ -96,6 +96,7 @@ export const ACCION_AUDITORIA: Record<string, string> = {
   'fem.empresa_create': 'Alta de empresa FEM',
   'fem.empresa_patch': 'Modificación de empresa FEM',
   'fem.empresa_geocodificar': 'Empresa FEM geolocalizada',
+  'dashboard.configuracion_put': 'Cambio del umbral de retrasos',
 }
 
 const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })

@@ -1,6 +1,8 @@
 """Esquemas del dashboard de KPIs."""
 
-from pydantic import BaseModel
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DashboardKpis(BaseModel):
@@ -47,6 +49,51 @@ class DashboardRrss(BaseModel):
     publicadas: int
     porcentaje: float
     por_departamento: list[PublicacionesDepartamento]
+
+
+class ConfiguracionDashboard(BaseModel):
+    """Parámetros que fija el equipo directivo (no valores fijos en código)."""
+
+    # Nº de retrasos en el curso escolar a partir del cual un alumno tiene "tasa alta" (KPI 3).
+    umbral_retrasos: int
+    actualizado_en: datetime | None = None
+    actualizado_por_nombre: str | None = None
+
+
+class ConfiguracionDashboardPut(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    umbral_retrasos: int = Field(ge=1, le=100)
+
+
+class RetrasosGrupo(BaseModel):
+    grupo: str
+    retrasos: int
+    alumnos_con_retrasos: int
+    alumnos_sobre_umbral: int
+
+
+class RetrasosModulo(BaseModel):
+    modulo: str
+    retrasos: int
+
+
+class AlumnoSobreUmbral(BaseModel):
+    alumno_id: str
+    nombre: str
+    grupo: str
+    retrasos: int
+
+
+class DashboardRetrasos(BaseModel):
+    """KPI 3: retrasos por grupo y módulo, y alumnado que alcanza el umbral de tasa alta."""
+
+    curso_escolar: str
+    umbral: int
+    total: int
+    por_grupo: list[RetrasosGrupo]
+    por_modulo: list[RetrasosModulo]
+    alumnado_sobre_umbral: list[AlumnoSobreUmbral]
 
 
 class DashboardFem(BaseModel):
