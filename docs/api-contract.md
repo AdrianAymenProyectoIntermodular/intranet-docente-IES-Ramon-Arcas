@@ -35,7 +35,7 @@ Estos listados devuelven un **array** (no el wrapper paginado), porque se consul
 | Endpoint | Motivo |
 |----------|--------|
 | `GET /api/v1/anuncios` | Feed del tablón (vigentes, segmentados) |
-| `GET /api/v1/tickets` | Cola filtrada por `tipo` / `estado` |
+| `GET /api/v1/tickets` | Cola filtrada por `tipo` / `estado`, solo con las solicitudes visibles para el usuario |
 | `GET /api/v1/guardias` | Cuadrante por `fecha` / `franja` |
 | `POST /api/v1/guardias/asignar` | Resultado de la ejecución (array de `Guardia`) |
 | `GET /api/v1/alumnos` | Selector acotado (máx. 50) por `grupo` / `q` |
@@ -131,15 +131,15 @@ Estados de ausencia: `registrada` → `pendiente_justificante` (si genérica) �
 
 | Método | Endpoint | Auth | Roles / propiedad | Descripción |
 |--------|----------|------|-------------------|-------------|
-| GET | `/api/v1/tickets` | Auth | — | Listado (`?tipo=&estado=`) → array |
+| GET | `/api/v1/tickets` | Auth | visibilidad (ver abajo) | Listado (`?tipo=&estado=`) → array, filtrado por visibilidad |
 | POST | `/api/v1/tickets` | Auth | — | Creación; `201` + `Location` |
 | PATCH | `/api/v1/tickets/{id}` | Auth | `admin` / `responsable_ticket` con competencia en el tipo | Transición de estado y asignación |
 | POST | `/api/v1/tickets/{id}/borrador` | Auth | solicitante, asignado, `admin` | Regenerar borrador de publicación RRSS |
 | POST | `/api/v1/tickets/{id}/adjuntos` | Auth | solicitante, asignado, `admin` | Subir archivo (multipart `archivo`); `201` + `Location` |
-| GET | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | involucrados | Descargar adjunto |
+| GET | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | visibilidad | Descargar adjunto |
 | DELETE | `/api/v1/tickets/{id}/adjuntos/{adjunto_id}` | Auth | quien lo subió, `admin` | Borrar adjunto (`204`) |
-| GET | `/api/v1/tickets/{id}/comentarios` | Auth | involucrados | Hilo de comentarios |
-| POST | `/api/v1/tickets/{id}/comentarios` | Auth | involucrados | Nuevo comentario; `201` + `Location` |
+| GET | `/api/v1/tickets/{id}/comentarios` | Auth | visibilidad | Hilo de comentarios |
+| POST | `/api/v1/tickets/{id}/comentarios` | Auth | solicitante, asignado, `responsable_ticket` con competencia, `admin` | Nuevo comentario; `201` + `Location` |
 
 ### Máquina de estados de tickets
 
@@ -181,6 +181,12 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 - Al crear un ticket se asigna automáticamente al responsable activo con competencia en su tipo y **menos solicitudes abiertas** (empate: orden alfabético). Sin responsables del tipo, queda sin asignar.
 - Gestionan: `admin` siempre; un `responsable_ticket` solo tickets de su competencia que tenga asignados o estén libres.
 - Reasignar a otra persona es de `admin`; el destino debe ser responsable activo con la competencia (si no, `422`).
+
+### Visibilidad de solicitudes
+
+- `admin` y `directiva` ven todas las solicitudes (gestión global y cuadro de mando).
+- El resto ve las que ha pedido (`solicitante_id`) y las que tiene asignadas (`asignado_id`); un `responsable_ticket` ve además **todas** las de los tipos de su competencia.
+- Se aplica al listado (`GET /tickets`, combinado con `?tipo=&estado=`), a los comentarios y a la descarga de adjuntos (`403` si no es visible). Implementación: `ticket_service.filtro_visibilidad` / `puede_ver_ticket`.
 
 ## FEM (Formación en Empresas Murcia)
 
