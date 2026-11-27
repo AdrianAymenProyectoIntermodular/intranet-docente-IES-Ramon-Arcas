@@ -6,8 +6,8 @@ import { ErrorState, ProgressBar, Skeleton } from '../components/ui/Feedback'
 import { Panel } from '../components/ui/Panel'
 import { useApi } from '../hooks/useApi'
 import { TIPO_TICKET } from '../lib/labels'
-import { fetchDashboardFem, fetchKpis, listTickets } from '../services/modulos'
-import type { ProporcionActivas, Ticket, TicketTipo } from '../services/types'
+import { fetchDashboardFem, fetchDashboardRrss, fetchKpis, listTickets } from '../services/modulos'
+import type { DashboardRrss, Ticket, TicketTipo } from '../services/types'
 
 type EstadoKpi = 'disponible' | 'parcial' | 'pendiente'
 
@@ -34,9 +34,9 @@ const INDICADORES: { nombre: string; estado: EstadoKpi; nota: string }[] = [
   },
   { nombre: 'Horas FEM cursadas sobre 500', estado: 'disponible', nota: 'Con todo el alumnado FEM registrado.' },
   {
-    nombre: 'Publicaciones RRSS y porcentaje publicado',
-    estado: 'parcial',
-    nota: 'Total y finalizadas; el desglose por departamento necesita ese dato en la solicitud.',
+    nombre: 'Publicaciones RRSS por departamento y porcentaje publicado',
+    estado: 'disponible',
+    nota: 'Publicada = solicitud resuelta o cerrada por el administrador de RRSS.',
   },
   { nombre: 'Uso del aula de convivencia', estado: 'pendiente', nota: 'Módulo no iniciado.' },
   { nombre: 'Comisiones de servicio gestionadas', estado: 'pendiente', nota: 'Módulo no iniciado.' },
@@ -46,11 +46,13 @@ export function DireccionPage() {
   const kpis = useApi(fetchKpis)
   const tickets = useApi(() => listTickets())
   const fem = useApi(fetchDashboardFem)
+  const rrss = useApi(fetchDashboardRrss)
 
   const recargar = () => {
     void kpis.reload()
     void tickets.reload()
     void fem.reload()
+    void rrss.reload()
   }
 
   return (
@@ -89,7 +91,13 @@ export function DireccionPage() {
 
         <Panel title="Seguimiento" description="Indicadores calculados con datos actuales">
           <div className="stack">
-            <RrssResumen tickets={tickets.data ?? []} cargando={tickets.loading} />
+            {rrss.loading ? (
+              <Skeleton lines={2} />
+            ) : rrss.error ? (
+              <ErrorState message={rrss.error} onRetry={() => void rrss.reload()} />
+            ) : (
+              rrss.data && <RrssResumen datos={rrss.data} />
+            )}
             {fem.loading ? (
               <Skeleton lines={2} />
             ) : fem.error ? (
@@ -127,11 +135,42 @@ export function DireccionPage() {
           <ErrorState message={fem.error} onRetry={() => void fem.reload()} />
         ) : fem.data && fem.data.empresas_total > 0 ? (
           <div className="grid-2">
-            <BarrasProporcion titulo="Por municipio" filas={fem.data.por_municipio} />
-            <BarrasProporcion titulo="Por ciclo formativo" filas={fem.data.por_ciclo} />
+            <BarrasProporcion
+              titulo="Por municipio"
+              etiqueta="activas"
+              filas={fem.data.por_municipio.map((f) => ({ ...f, parte: f.activas }))}
+            />
+            <BarrasProporcion
+              titulo="Por ciclo formativo"
+              etiqueta="activas"
+              filas={fem.data.por_ciclo.map((f) => ({ ...f, parte: f.activas }))}
+            />
           </div>
         ) : (
           <p className="subtle">No hay empresas colaboradoras registradas.</p>
+        )}
+      </Panel>
+
+      <Panel
+        title="Publicaciones en RRSS por departamento"
+        description={
+          rrss.data
+            ? `${rrss.data.publicadas} de ${rrss.data.total} solicitudes publicadas (${rrss.data.porcentaje}%)`
+            : 'Porcentaje de solicitudes de publicación efectivamente publicadas'
+        }
+      >
+        {rrss.loading ? (
+          <Skeleton lines={4} />
+        ) : rrss.error ? (
+          <ErrorState message={rrss.error} onRetry={() => void rrss.reload()} />
+        ) : rrss.data && rrss.data.total > 0 ? (
+          <BarrasProporcion
+            titulo="Publicadas sobre solicitadas"
+            etiqueta="publicadas"
+            filas={rrss.data.por_departamento.map((f) => ({ ...f, parte: f.publicadas }))}
+          />
+        ) : (
+          <p className="subtle">Todavía no hay solicitudes de publicación.</p>
         )}
       </Panel>
 
@@ -167,20 +206,22 @@ function Cifra({ label, valor, nota }: { label: string; valor: number | null | u
   )
 }
 
-/** Porcentaje de empresas activas por grupo; el valor va rotulado (no depende del color). */
-function BarrasProporcion({ titulo, filas }: { titulo: string; filas: ProporcionActivas[] }) {
+type FilaProporcion = { nombre: string; total: number; parte: number; porcentaje: number }
+
+/** Porcentaje de una parte sobre el total por grupo; el valor va rotulado (no depende del color). */
+function BarrasProporcion({ titulo, etiqueta, filas }: { titulo: string; etiqueta: string; filas: FilaProporcion[] }) {
   return (
     <div className="stack-sm">
       <h3 className="barras-titulo">{titulo}</h3>
-      <ul className="barras" aria-label={`Empresas activas ${titulo.toLowerCase()}`}>
+      <ul className="barras" aria-label={`${titulo} (${etiqueta})`}>
         {filas.map((f) => (
           <li key={f.nombre} className="barra-fila">
             <span className="barra-label">{f.nombre}</span>
-            <span className="barra-pista" title={`${f.nombre}: ${f.activas} de ${f.total} activas`}>
+            <span className="barra-pista" title={`${f.nombre}: ${f.parte} de ${f.total} ${etiqueta}`}>
               <span className="barra" style={{ width: `${f.porcentaje}%` }} />
             </span>
             <span className="barra-valor num">
-              {Math.round(f.porcentaje)}%<span className="subtle"> ({f.activas}/{f.total})</span>
+              {Math.round(f.porcentaje)}%<span className="subtle"> ({f.parte}/{f.total})</span>
             </span>
           </li>
         ))}
@@ -240,19 +281,16 @@ function BarrasTipo({ tickets }: { tickets: Ticket[] }) {
   )
 }
 
-function RrssResumen({ tickets, cargando }: { tickets: Ticket[]; cargando: boolean }) {
-  if (cargando) return <Skeleton lines={2} />
-  const rrss = tickets.filter((t) => t.tipo === 'rrss')
-  const publicadas = rrss.filter((t) => t.estado === 'cerrado' || t.estado === 'resuelto').length
+function RrssResumen({ datos }: { datos: DashboardRrss }) {
   return (
     <div className="indicador">
       <div className="row-between">
-        <span>Publicaciones RRSS finalizadas</span>
-        <strong className="num">{rrss.length ? Math.round((publicadas / rrss.length) * 100) : 0}%</strong>
+        <span>Publicaciones RRSS publicadas</span>
+        <strong className="num">{Math.round(datos.porcentaje)}%</strong>
       </div>
-      <ProgressBar value={publicadas} max={Math.max(1, rrss.length)} label="Publicaciones RRSS finalizadas" />
+      <ProgressBar value={datos.publicadas} max={Math.max(1, datos.total)} label="Publicaciones RRSS publicadas" />
       <p className="subtle num">
-        {publicadas} de {rrss.length} solicitudes de publicación
+        {datos.publicadas} de {datos.total} solicitudes de publicación
       </p>
     </div>
   )

@@ -172,6 +172,20 @@ export type DashboardKpis = {
 
 export type ProporcionActivas = { nombre: string; total: number; activas: number; porcentaje: number }
 
+export type PublicacionesDepartamento = {
+  nombre: string
+  total: number
+  publicadas: number
+  porcentaje: number
+}
+
+export type DashboardRrss = {
+  total: number
+  publicadas: number
+  porcentaje: number
+  por_departamento: PublicacionesDepartamento[]
+}
+
 export type DashboardFem = {
   empresas_total: number
   empresas_activas: number

@@ -1455,6 +1455,29 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/v1/dashboard/rrss:
+    get:
+      tags: [Dashboard]
+      summary: Indicador de publicaciones en RRSS
+      description: |
+        KPI 7: solicitudes de publicación RRSS por departamento (`datos.departamento`)
+        y porcentaje efectivamente publicado (solicitudes `resuelto` o `cerrado`).
+        Roles `directiva`, `admin`.
+      operationId: getDashboardRrss
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Publicaciones RRSS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardRrss'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /api/v1/retrasos:
     post:
       tags: [Retrasos]
@@ -2817,6 +2840,36 @@ components:
               type: number
             porcentaje:
               type: number
+
+    PublicacionesDepartamento:
+      type: object
+      required: [nombre, total, publicadas, porcentaje]
+      properties:
+        nombre:
+          type: string
+          example: Informática
+        total:
+          type: integer
+        publicadas:
+          type: integer
+        porcentaje:
+          type: number
+          example: 66.7
+
+    DashboardRrss:
+      type: object
+      required: [total, publicadas, porcentaje, por_departamento]
+      properties:
+        total:
+          type: integer
+        publicadas:
+          type: integer
+        porcentaje:
+          type: number
+        por_departamento:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicacionesDepartamento'
 
     DashboardKpis:
       type: object

@@ -27,6 +27,28 @@ class HorasFem(BaseModel):
     porcentaje: float
 
 
+class PublicacionesDepartamento(BaseModel):
+    """Solicitudes de publicación RRSS de un departamento y cuántas se han publicado."""
+
+    nombre: str
+    total: int
+    publicadas: int
+    porcentaje: float
+
+
+class DashboardRrss(BaseModel):
+    """KPI 7: publicaciones RRSS por departamento y porcentaje efectivamente publicado.
+
+    Se considera publicada una solicitud resuelta o cerrada (el administrador de RRSS la
+    marca así tras publicarla a mano).
+    """
+
+    total: int
+    publicadas: int
+    porcentaje: float
+    por_departamento: list[PublicacionesDepartamento]
+
+
 class DashboardFem(BaseModel):
     """KPI 5 (empresas activas por municipio y ciclo) y KPI 6 (horas sobre las previstas)."""
 

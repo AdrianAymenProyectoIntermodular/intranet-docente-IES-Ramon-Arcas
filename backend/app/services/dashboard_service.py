@@ -4,8 +4,15 @@ from datetime import UTC, datetime
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.models.dashboard import DashboardFem, DashboardKpis, HorasFem, ProporcionActivas
-from app.models.ticket import TicketEstado
+from app.models.dashboard import (
+    DashboardFem,
+    DashboardKpis,
+    DashboardRrss,
+    HorasFem,
+    ProporcionActivas,
+    PublicacionesDepartamento,
+)
+from app.models.ticket import TicketEstado, TicketTipo
 from app.models.usuario import UsuarioEstado
 
 
@@ -46,6 +53,43 @@ def _proporciones(datos: dict[str, list[int]]) -> list[ProporcionActivas]:
             for k, (t, a) in datos.items()
         ),
         key=lambda p: (-p.total, p.nombre),
+    )
+
+
+# Una publicación RRSS cuenta como publicada cuando su solicitud está resuelta o cerrada.
+ESTADOS_PUBLICADA = [TicketEstado.resuelto.value, TicketEstado.cerrado.value]
+
+
+async def get_rrss(db: AsyncIOMotorDatabase) -> DashboardRrss:
+    """KPI 7: solicitudes de publicación RRSS por departamento y porcentaje publicado."""
+    filas = await db["tickets"].aggregate(
+        [
+            {"$match": {"tipo": TicketTipo.rrss.value}},
+            {
+                "$group": {
+                    "_id": {"$ifNull": ["$datos.departamento", "Sin departamento"]},
+                    "total": {"$sum": 1},
+                    "publicadas": {"$sum": {"$cond": [{"$in": ["$estado", ESTADOS_PUBLICADA]}, 1, 0]}},
+                }
+            },
+            {"$sort": {"total": -1, "_id": 1}},
+        ]
+    ).to_list(None)
+    total = sum(f["total"] for f in filas)
+    publicadas = sum(f["publicadas"] for f in filas)
+    return DashboardRrss(
+        total=total,
+        publicadas=publicadas,
+        porcentaje=_porcentaje(publicadas, total),
+        por_departamento=[
+            PublicacionesDepartamento(
+                nombre=f["_id"] or "Sin departamento",
+                total=f["total"],
+                publicadas=f["publicadas"],
+                porcentaje=_porcentaje(f["publicadas"], f["total"]),
+            )
+            for f in filas
+        ],
     )
 
 

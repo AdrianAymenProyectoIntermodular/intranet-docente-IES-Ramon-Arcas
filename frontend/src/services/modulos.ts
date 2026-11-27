@@ -8,6 +8,7 @@ import type {
   Comentario,
   DashboardFem,
   DashboardKpis,
+  DashboardRrss,
   Emplazamiento,
   EmplazamientoPayload,
   FemAlumno,
@@ -100,6 +101,10 @@ export function fetchKpis(): Promise<DashboardKpis> {
 
 export function fetchDashboardFem(): Promise<DashboardFem> {
   return apiFetch<DashboardFem>('/api/v1/dashboard/fem')
+}
+
+export function fetchDashboardRrss(): Promise<DashboardRrss> {
+  return apiFetch<DashboardRrss>('/api/v1/dashboard/rrss')
 }
 
 /* Auditoría */

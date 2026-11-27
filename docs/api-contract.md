@@ -208,6 +208,7 @@ Campo flexible validado según `tipo` (memoria, apartado 5.7). Campos no previst
 |--------|----------|------|-------|-------------|
 | GET | `/api/v1/dashboard/kpis` | Auth | `directiva`, `admin` | Indicadores del centro |
 | GET | `/api/v1/dashboard/fem` | Auth | `directiva`, `admin` | KPI 5 (empresas activas por municipio y ciclo) y KPI 6 (horas sobre las previstas) |
+| GET | `/api/v1/dashboard/rrss` | Auth | `directiva`, `admin` | KPI 7 (publicaciones RRSS por departamento y % publicado: `resuelto` o `cerrado`) |
 
 ## Retrasos
 
