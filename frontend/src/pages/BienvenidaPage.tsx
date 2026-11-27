@@ -5,6 +5,7 @@ import { PageHeader } from '../components/layout/PageHeader'
 import { ButtonLink } from '../components/ui/Button'
 import { Panel } from '../components/ui/Panel'
 import { primerNombre } from '../lib/format'
+import { VIDEOS_MODULO } from '../lib/onboarding'
 import { navegacionPara } from '../lib/navigation'
 import { puede } from '../lib/permissions'
 
@@ -75,19 +76,27 @@ export function BienvenidaPage() {
         ))}
       </ol>
 
-      <Panel title="Vídeos explicativos" description="Un vídeo corto por módulo">
+      <Panel title="Vídeos explicativos" description="Un vídeo corto por módulo con lo esencial para empezar">
         <ul className="videos">
           {modulos.map((m) => {
             const Icon = m.icon
+            const video = VIDEOS_MODULO[m.id]
             return (
               <li key={m.id} className="video">
-                <Icon size={18} aria-hidden />
-                <Link to={m.path} className="grow">
-                  {m.label}
-                </Link>
-                <span className="subtle video-estado">
-                  <CirclePlay size={15} aria-hidden /> En preparación
-                </span>
+                <Icon size={18} aria-hidden className="video-icono" />
+                <div className="grow">
+                  <Link to={m.path}>{m.label}</Link>
+                  {video && <p className="subtle video-guion">{video.guion}</p>}
+                </div>
+                {video?.url ? (
+                  <a className="video-estado" href={video.url} target="_blank" rel="noopener noreferrer">
+                    <CirclePlay size={15} aria-hidden /> Ver vídeo ({video.duracion})
+                  </a>
+                ) : (
+                  <span className="subtle video-estado">
+                    <CirclePlay size={15} aria-hidden /> {video ? `${video.duracion}, próximamente` : 'Próximamente'}
+                  </span>
+                )}
               </li>
             )
           })}
